@@ -482,14 +482,39 @@ function mkpiece(R,hl,lab,o,n,ms){
   const H=R.slice(4,hl+1),body=R.slice(hl+1),z=body.findIndex(blank),dat=z<0?body:body.slice(0,z);
   if(z>=0){const ex=body.slice(z).filter(r=>!blank(r));if(ex.length)o.issues.push(ex.length+' row(s) below a blank gap in sheet '+n+' (first: "'+String(ex[0].find(c=>c!=null&&c!=='')).slice(0,25)+'") were NOT consolidated - check the source file');}
   let w=0;const mx=r=>r.forEach((c,j)=>{if(c!=null&&c!=='')w=Math.max(w,j+1);});R.slice(0,hl+1).forEach(mx);dat.forEach(mx);
-  const fill=H.map((r,ri)=>{let cur=null;return Array.from({length:w},(_,j)=>{const c=r[j];if(c!=null&&c!=='')cur=c;return ri<H.length-1?cur:(c==null||c===''?null:c);});});
+  let hw=0;H.forEach(r=>r.forEach((c,j)=>{if(c!=null&&c!=='')hw=Math.max(hw,j+1);}));/* columns past the portal's last heading are the user's own notes: no band heading is carried over to them */
+  const fill=H.map((r,ri)=>{let cur=null;return Array.from({length:w},(_,j)=>{if(j>=hw)return null;const c=r[j];if(c!=null&&c!=='')cur=c;return ri<H.length-1?cur:(c==null||c===''?null:c);});});
   const cnt={},fk=[],fh={};
   for(let j=0;j<w;j++){let key=fill.map(r=>r[j]).filter(x=>x!=null&&x!=='').map(x=>String(x).trim()).join(' | ')||'(col '+(j+1)+')';
     cnt[key]=(cnt[key]||0)+1;if(cnt[key]>1)key+=' #'+cnt[key];fk.push(key);fh[key]=H.map(r=>em(r[j]));}
   const mg=[];(ms||[]).forEach(m=>{if(m.s.r>=4&&m.e.r<=hl&&m.s.c<w)mg.push({r1:m.s.r-4,r2:m.e.r-4,k1:fk[m.s.c],k2:fk[Math.min(m.e.c,w-1)]});});
   const cells=dat.reduce((s,r)=>s+r.filter(c=>c!=null&&c!=='').length,0);
   return {top:R.slice(0,4).map(r=>em(r[0])),fk,fh,hn:H.length,mg,cells,lab,d:dat.map(c=>({m:lab,c}))};}
+// The portal changed the layout of the 2B sheets part-way through the year: April's download has ONE heading row (and an unlabelled Cess column),
+// later months have TWO (a band such as "Invoice Details" / "Tax Amount" over the real heading). Without this step the two layouts get different
+// column keys and the same field lands in two different columns. Here every one-row piece is mapped onto the two-row keys, by heading text.
+function unify(pieces){
+  const ps=pieces.filter(Boolean);if(!ps.length)return;
+  const hnMax=Math.max(...ps.map(p=>p.hn));
+  const base=k=>k.replace(/ #\d+$/,''),leaf=k=>base(k).split(' | ').pop();
+  const lay=ps.filter(p=>p.hn===hnMax&&hnMax>1);if(!lay.length||ps.every(p=>p.hn===hnMax))return;
+  const refKeys=lay[0].fk.map(base),L2K={};
+  lay.forEach(p=>p.fk.forEach(k=>{const b=base(k);if(b.indexOf(' | ')<0)return;const L=leaf(k),e=L2K[L];
+    if(!e)L2K[L]={key:b,fh:p.fh[k]};else if(e.key!==b)e.amb=true;}));
+  ps.filter(p=>p.hn<hnMax).forEach(p=>{
+    const nk=[],nfh={},map={},used={};
+    p.fk.forEach((k,j)=>{
+      let b=base(k),nb=b,fh=null;
+      if(/^\(col \d+\)$/.test(b)){const prev=nk[j-1],i=prev?refKeys.indexOf(base(prev)):-1,cand=i>=0?refKeys[i+1]:null;
+        if(cand&&!p.fk.some(x=>base(x)===cand)&&!nk.some(x=>base(x)===cand)){nb=cand;fh=L2K[leaf(cand)]&&L2K[leaf(cand)].key===cand?L2K[leaf(cand)].fh:null;}}
+      else if(b.indexOf(' | ')<0&&L2K[b]&&!L2K[b].amb){nb=L2K[b].key;fh=L2K[b].fh;}
+      let nkey=nb;if(used[nkey]){used[nb]++;nkey=nb+' #'+used[nb];}else used[nkey]=1;
+      if(!fh){fh=(p.fh[k]||[]).slice();while(fh.length<hnMax)fh.push('');}
+      nk.push(nkey);nfh[nkey]=fh;map[k]=nkey;});
+    p.mg.forEach(m=>{m.k1=map[m.k1]||m.k1;m.k2=map[m.k2]||m.k2;});
+    p.fk=nk;p.fh=nfh;p.hn=hnMax;});}
 function align(pieces){
+  unify(pieces);
   const tk=[],th={};let top=null,hn=0;
   pieces.forEach(p=>{if(!top){top=p.top;hn=p.hn;}let last=-1;p.fk.forEach(k=>{let i=tk.indexOf(k);if(i<0){i=last+1;tk.splice(i,0,k);th[k]=p.fh[k];}last=i;});});
   const W=tk.length+1,out=top.map(t=>[t,...Array(W-1).fill('')]);
