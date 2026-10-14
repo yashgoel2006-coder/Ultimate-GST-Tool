@@ -388,25 +388,31 @@ function parseReturn(pages){
     if(/^A\. ITC/.test(t))sec='A'; else if(/^B\. ITC/.test(t))sec='B';
     let key=null;
     if(/^C\. Net ITC/.test(t)){sec='C';key='C';} else if(/^\(D\) Other/.test(t)){sec='D';key='D';}
+    else if(/^D\.\s*Ineligible ITC/.test(t)){sec='D';key='D';R.inel=true;}
     else{const m=t.match(/^\((\d)\)/); if(m&&n.length>=4&&sec)key=sec+m[1];}
     if(key&&n.length>=4)R.t4[key]=n.slice(-4);
   }
-  (R.old?['A','B','C','D']:Object.keys(L4)).forEach(k=>{if(!R.t4[k])R.issues.push('Table 4 row missing: '+k);});
+  R.lab4=R.inel?Object.assign({},L4,{B1:'B(1) ITC reversed - As per rules 42 & 43 of CGST Rules',D:'D. Ineligible ITC',D1:'D(1) As per section 17(5)',D2:'D(2) Others'}):L4;
+  (R.old?['A','B','C','D']:Object.keys(L4).filter(k=>R.inel||!/^D/.test(k))).forEach(k=>{if(!R.t4[k])R.issues.push('Table 4 row missing: '+k);});
   // 6.1
   let ps='';
+  const hasAdj=rows.slice(Math.max(i61,0),Math.max(i61,0)+14).map(r=>r.text).join(' ').match(/negative/i);
   for(let i=i61+1;i<(ibr>0?ibr:rows.length);i++){
     const t=rows[i].text.replace(/State\/\s*UT/,'State/UT');
     if(/^\(A\) Other than reverse/.test(t))ps='A'; else if(/^\(B\) Reverse charge/.test(t))ps='B';
     const m=t.match(/^(Integrated|Central|State\/UT|Cess)/);
     if(m&&ps){const tk=rows[i].items.map(x=>x.s.trim()).filter(x=>/^(-|-?[\d,]+(\.\d*)?)$/.test(x)); if(tk.length>=8){
-      let v=tk.slice(0,10).map((x,k)=>(k<8||DASHNUM.test(x))?toNum(x):null); while(v.length<10)v.push(null); if(R.old)v=[v[0],null,null,v[1],v[2],v[3],v[4],v[5],v[6],v[7]];
+      let v=tk.slice(0,10).map((x,k)=>(k<8||DASHNUM.test(x))?toNum(x):null); while(v.length<10)v.push(null); if(R.old||!hasAdj){const a=tk.slice(0,8).map((x,k)=>(k<6||DASHNUM.test(x))?toNum(x):null);while(a.length<8)a.push(null);v=[a[0],null,null,a[1],a[2],a[3],a[4],a[5],a[6],a[7]];}
       if((v[8]===null||v[9]===null)&&!R.warn.length)R.warn.push('Table 6.1 interest/late-fee columns are cut off in this PDF (left blank)');
       R.t61.push({sec:ps,head:HEADS[['Integrated','Central','State/UT','Cess'].indexOf(m[1])],v});}}
   }
   if(R.t61.length!==8)R.issues.push('Table 6.1: expected 8 rows, found '+R.t61.length);
   // arithmetic check: C = A - B
-  if(R.t4.C&&(R.old?R.t4.A:R.t4.A1)){for(let c=0;c<4;c++){let a=0;(R.old?['A']:['A1','A2','A3','A4','A5']).forEach(k=>a+=(R.t4[k]||[0,0,0,0])[c]);
-    const b=R.old?(R.t4.B||[0,0,0,0])[c]:(R.t4.B1||[0,0,0,0])[c]+(R.t4.B2||[0,0,0,0])[c]; if(Math.abs(a-b-R.t4.C[c])>0.05)R.issues.push('Table 4 check failed: A-B != C for '+HEADS[c]);}}
+  if(R.t4.C&&(R.old?R.t4.A:R.t4.A1)){const bad=[];let tot=0;for(let c=0;c<4;c++){let a=0;(R.old?['A']:['A1','A2','A3','A4','A5']).forEach(k=>a+=(R.t4[k]||[0,0,0,0])[c]);
+    const b=R.old?(R.t4.B||[0,0,0,0])[c]:(R.t4.B1||[0,0,0,0])[c]+(R.t4.B2||[0,0,0,0])[c]; tot+=Math.abs(a)+Math.abs(b); if(Math.abs(a-b-R.t4.C[c])>0.05)bad.push(c);}
+    if(bad.length){
+      if(tot===0)R.warn.push('Table 4: the PDF itself prints A(1)-A(5) and B as 0.00 but net ITC (C) is non-zero, so A-B does not equal C in the source. Net ITC is taken from row C; get the ITC breakup from the portal/GSTR-2A if needed');
+      else bad.forEach(c=>R.issues.push('Table 4 check failed: A-B != C for '+HEADS[c]));}}
   return R;
 }
 function crossCheck(R,path){
@@ -432,7 +438,7 @@ function workbook(){
   const hd=r=>[r.R.h.gstin,r.R.h.year,r.R.h.period,r.status];
   add('Summary',[SH,...recs.map(sumRow)],[34,10,17,22,9,11,17,12,...Array(15).fill(18),60]);
   const A=[['GSTIN','Year','Period','Status','Description','Total taxable value','Integrated tax','Central tax','State/UT tax','Cess']],B=[['GSTIN','Year','Period','Status','Description','Integrated tax','Central tax','State/UT tax','Cess']],C=[['GSTIN','Year','Period','Status','Section','Tax head','Tax payable','Adjustment of negative liability','Net tax payable','Paid via ITC - Integrated','Paid via ITC - Central','Paid via ITC - State/UT','Paid via ITC - Cess','Paid in cash','Interest paid in cash','Late fee paid in cash']];
-  recs.forEach(r=>{r.R.t31.forEach((v,i)=>A.push([...hd(r),L31[i],...v]));if(r.R.t31.length){const tot=[0,1,2,3,4].map(c=>Math.round([0,1,2,4].reduce((s,i)=>s+((r.R.t31[i]||[])[c]||0),0)*100)/100);A.push([...hd(r),'Total of 3.1 (a)+(b)+(c)+(e) - excluding (d) inward supplies',...tot]);}(r.R.old?['A','B','C','D']:Object.keys(L4)).forEach(k=>{if(r.R.t4[k])B.push([...hd(r),(r.R.old?L4OLD:L4)[k],...r.R.t4[k]]);});
+  recs.forEach(r=>{r.R.t31.forEach((v,i)=>A.push([...hd(r),L31[i],...v]));if(r.R.t31.length){const tot=[0,1,2,3,4].map(c=>Math.round([0,1,2,4].reduce((s,i)=>s+((r.R.t31[i]||[])[c]||0),0)*100)/100);A.push([...hd(r),'Total of 3.1 (a)+(b)+(c)+(e) - excluding (d) inward supplies',...tot]);}(r.R.old?['A','B','C','D']:Object.keys(L4)).forEach(k=>{if(r.R.t4[k])B.push([...hd(r),(r.R.old?L4OLD:(r.R.lab4||L4))[k],...r.R.t4[k]]);});
     r.R.t61.forEach(x=>C.push([...hd(r),x.sec==='A'?'(A) Other than reverse charge':'(B) Reverse charge & 9(5)',x.head,...x.v]));});
   add('3.1 Outward',A,[17,9,11,10,70,18,16,16,16,12]);add('4 ITC',B,[17,9,11,10,64,16,16,16,12]);add('6.1 Payment',C,[17,9,11,10,30,16,16,16,16,16,16,16,16,16,16,16]);
   add('Checks',[['File','Status','GSTIN','Period','Result'],...recs.map(r=>[base(r.path),r.status,r.R.h.gstin,r.R.h.period,[...r.R.issues,...r.R.warn].join('; ')||'OK'])],[34,16,17,11,80]);
