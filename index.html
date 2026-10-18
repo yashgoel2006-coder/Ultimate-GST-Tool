@@ -37,7 +37,7 @@ input.t{font:inherit;padding:8px 10px;border:1px solid var(--ln);border-radius:8
 <p class="sub">Choose what you want to convert, then select your files. Everything is read inside your browser; no file is uploaded anywhere.</p>
 <div class="card"><div class="sub" style="margin:0 0 10px"><b>Step 1 · What are you converting?</b></div>
 <div class="modes"><button class="mode" id="m1"><b>GSTR-1</b><span>Outward supplies. Excel with Summary, GSTR-1 Consolidated and one sheet for every table.</span></button>
-<button class="mode" id="m3"><b>GSTR-3B</b><span>Monthly summary return. Excel with Summary, 3.1 Outward, 4 ITC, 6.1 Payment and Checks.</span></button>
+<button class="mode" id="m3"><b>GSTR-3B</b><span>Monthly summary return. Excel with Summary, 3.1 Outward, 4 ITC, 6.1 Payment, Checks, Outward Supplies Table and Inward Supplies Table.</span></button>
 <button class="mode" id="m2b"><b>GSTR-2B</b><span>Monthly 2B Excel files from the portal. One workbook per GSTIN: every sheet from B2B to the right as its own tab, plus Checks, Completeness and Tie-out.</span></button></div></div>
 <div id="step2" class="hide">
 <div class="card"><div class="sub" style="margin:0 0 4px"><b>Step 2 · Select your <span id="mlab"></span> files</b></div><p class="sub" id="msub" style="margin:0 0 12px"></p>
@@ -433,7 +433,7 @@ function sumRow(r){const R=r.R,h=R.h,a=R.t31[0]||[],c=R.t4.C||[],cash=[0,1,2,3].
   const sm=i=>R.t61.reduce((s,x)=>s+(x.v[i]||0),0);const chk=[...R.issues,...R.warn].join('; ')||'OK';
   return [base(r.path),r.status,h.gstin,h.name,h.year,h.period,h.arn,h.arnDate,a[0],a[1],a[2],a[3],a[4],c[0],c[1],c[2],c[3],cash[0],cash[1],cash[2],cash[3],sm(8),sm(9),chk];}
 const SH=['File','Status','GSTIN','Legal name','Year','Period','ARN','ARN date','3.1(a) Taxable value','3.1(a) IGST','3.1(a) CGST','3.1(a) SGST/UTGST','3.1(a) Cess','Net ITC IGST','Net ITC CGST','Net ITC SGST/UTGST','Net ITC Cess','Cash paid IGST','Cash paid CGST','Cash paid SGST/UTGST','Cash paid Cess','Interest paid (cash)','Late fee (cash)','Checks'];
-function workbook(){
+async function workbook(){
   const wb=XLSX.utils.book_new(),add=(n,rows,w)=>{const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=w.map(x=>({wch:x}));ws['!freeze']={ySplit:1};numFmtWs(ws);XLSX.utils.book_append_sheet(wb,ws,n);};
   const hd=r=>[r.R.h.gstin,r.R.h.year,r.R.h.period,r.status];
   add('Summary',[SH,...recs.map(sumRow)],[34,10,17,22,9,11,17,12,...Array(15).fill(18),60]);
@@ -442,7 +442,120 @@ function workbook(){
     r.R.t61.forEach(x=>C.push([...hd(r),x.sec==='A'?'(A) Other than reverse charge':'(B) Reverse charge & 9(5)',x.head,...x.v]));});
   add('3.1 Outward',A,[17,9,11,10,70,18,16,16,16,12]);add('4 ITC',B,[17,9,11,10,64,16,16,16,12]);add('6.1 Payment',C,[17,9,11,10,30,16,16,16,16,16,16,16,16,16,16,16]);
   add('Checks',[['File','Status','GSTIN','Period','Result'],...recs.map(r=>[base(r.path),r.status,r.R.h.gstin,r.R.h.period,[...r.R.issues,...r.R.warn].join('; ')||'OK'])],[34,16,17,11,80]);
-  return XLSX.write(wb,{type:'array',bookType:'xlsx'});}
+  const sty={};['Summary','3.1 Outward','4 ITC','6.1 Payment','Checks'].forEach(n=>flatStyle(wb.Sheets[n],n,sty));macroSheets(wb,sty);
+  return await styleBook(XLSX.write(wb,{type:'array',bookType:'xlsx'}),wb.SheetNames,sty);}
+/* Same look for the line-by-line sheets: header row, bordered cells, numbers with 2 decimals, shaded total rows.
+   o (optional): hdr = header rows, skip = rows left alone, txt = columns always shown as text/plain, int = whole-number columns, tot(r,ws) = is row r a total row */
+function flatStyle(ws,name,sty,o){
+  o=o||{};const hdr=o.hdr||[0],skip=o.skip||[],txt=o.txt||[],int=o.int||[];
+  const ec=XLSX.utils.encode_cell,rg=XLSX.utils.decode_range(ws['!ref']||'A1'),m={};
+  const isTot=o.tot||((r,w)=>{const d=w[ec({r,c:4})];return name==='3.1 Outward'&&r>0&&!!d&&/^Total of 3\.1/.test(String(d.v||''));});
+  for(let r=rg.s.r;r<=rg.e.r;r++){
+    if(skip.includes(r))continue;
+    const tot=!hdr.includes(r)&&isTot(r,ws);
+    for(let c=rg.s.c;c<=rg.e.c;c++){const a=ec({r,c}),n=!!ws[a]&&ws[a].t==='n'&&!txt.includes(c);
+      m[a]=hdr.includes(r)?'hdr':tot?(n?'totn':'totl'):(n?(int.includes(c)?'int':'num'):'mon');}}
+  const rows=[];hdr.forEach(r=>{rows[r]={hpt:32};});ws['!rows']=rows;sty[name]=m;
+}
+/* Macro sheets: Outward Supplies Table and Inward Supplies Table (month-wise, one block per GSTIN and financial year) */
+function macroSheets(wb,sty){
+  const FYO=MONTHS, T4=['Integrated Tax','Central Tax','State Tax','Cess'], ec=XLSX.utils.encode_cell;
+  const groups=[];
+  recs.forEach(r=>{const h=r.R.h;if(r.R.summaryDoc||!h.period)return;const k=(h.gstin||'-')+'|'+(h.year||'-');let g=groups.find(x=>x.k===k);if(!g){g={k,gstin:h.gstin||'',year:h.year||'',byM:{}};groups.push(g);}
+    const cur=g.byM[h.period];if(!cur||(cur.status!=='FILED'&&r.status==='FILED'))g.byM[h.period]=r;});
+  groups.sort((a,b)=>(a.gstin+a.year).localeCompare(b.gstin+b.year));
+  const rd=x=>Math.round((x||0)*100)/100;
+  const sum=(arr,n)=>{const o=Array(n).fill(0);arr.forEach(v=>{if(v)for(let i=0;i<n;i++)o[i]+=(v[i]||0);});return o.map(rd);};
+  /* b = block builder: collects rows, merges, styles and row heights */
+  const B=ncol=>({rows:[],mg:[],st:[],ht:{},
+    put(row,keys,h){const r=this.rows.length;this.rows.push(row);keys.forEach((k,c)=>{if(k)this.st.push([r,c,k]);});if(h)this.ht[r]=h;return r;},
+    span(r,c1,c2,key){this.mg.push({s:{r,c:c1},e:{r,c:c2}});for(let c=c1;c<=c2;c++)this.st.push([r,c,key]);}});
+  const fin=(name,b,w)=>{const ws=XLSX.utils.aoa_to_sheet(b.rows);ws['!cols']=w.map(x=>({wch:x}));if(b.mg.length)ws['!merges']=b.mg;
+    const m={};b.st.forEach(([r,c,k])=>{m[ec({r,c})]=k;});
+    const ref=XLSX.utils.decode_range(ws['!ref']||'A1');b.st.forEach(([r,c])=>{if(r>ref.e.r)ref.e.r=r;if(c>ref.e.c)ref.e.c=c;});ws['!ref']=XLSX.utils.encode_range(ref);
+    ws['!rows']=b.rows.map((_,r)=>b.ht[r]?{hpt:b.ht[r]}:{});
+    XLSX.utils.book_append_sheet(wb,ws,name);sty[name]=m;};
+  /* Outward Supplies Table */
+  const O=B(),OC=6;
+  let r0=O.put(['Outward Supplies Table'],['title'],24);O.span(r0,0,OC-1,'title');
+  r0=O.put(['Month-wise Table 3.1: (a) + (b) + (c) + (e). Excludes (d) inward supplies liable to reverse charge.'],['note']);O.span(r0,0,OC-1,'note');
+  O.put([],[]);
+  groups.forEach(g=>{
+    r0=O.put(['GSTIN: '+(g.gstin||'-')+'     |     Financial year: '+(g.year||'-')],['meta'],20);O.span(r0,0,OC-1,'meta');
+    O.put(['Month','Total Taxable Value','Integrated Tax','Central Tax','State Tax','Cess'],Array(OC).fill('hdr'),30);
+    const tot=Array(5).fill(0);
+    FYO.forEach(m=>{const r=g.byM[m],t=r?r.R.t31:[];const v=r&&t.length?sum([0,1,2,4].map(i=>t[i]),5):[0,0,0,0,0];v.forEach((x,i)=>tot[i]+=x);O.put([m,...v],['mon',...Array(5).fill('num')]);});
+    O.put(['Grand Total',...tot.map(rd)],['totl',...Array(5).fill('totn')]);O.put([],[]);O.put([],[]);
+  });
+  if(!groups.length)O.put(['No monthly returns found.'],[]);
+  fin('Outward Supplies Table',O,[16,22,18,18,18,14]);
+  /* Inward Supplies Table */
+  const heads=['(A) ITC Available','(B) ITC Reversed','(C) Net ITC Available','(D) Ineligible ITC'];
+  const I=B(),IC=17;
+  r0=I.put(['Inward Supplies Table'],['title'],24);I.span(r0,0,IC-1,'title');
+  r0=I.put(['Month-wise Table 4: (A) ITC Available, (B) ITC Reversed, (C) Net ITC Available, (D) Ineligible ITC.'],['note']);I.span(r0,0,IC-1,'note');
+  I.put([],[]);
+  groups.forEach(g=>{
+    r0=I.put(['GSTIN: '+(g.gstin||'-')+'     |     Financial year: '+(g.year||'-')],['meta'],20);I.span(r0,0,IC-1,'meta');
+    const h1=I.put(['Month',...heads.flatMap(h=>[h,'','',''])],Array(IC).fill('hdr'),22);
+    for(let k=0;k<4;k++)I.span(h1,1+k*4,4+k*4,'hdr');
+    const h2=I.put(['',...heads.flatMap(()=>T4)],Array(IC).fill('hdr2'),22);
+    I.mg.push({s:{r:h1,c:0},e:{r:h2,c:0}});I.st.push([h2,0,'hdr']);
+    const tot=Array(16).fill(0);
+    FYO.forEach(m=>{const r=g.byM[m],t=r?r.R.t4:{};let row=Array(16).fill(0);
+      if(r){const A=r.R.old?[t.A]:[t.A1,t.A2,t.A3,t.A4,t.A5],Bv=r.R.old?[t.B]:[t.B1,t.B2],D=t.D||sum([t.D1,t.D2],4);
+        row=[...sum(A,4),...sum(Bv,4),...(t.C||[0,0,0,0]),...(D||[0,0,0,0])].map(rd);}
+      row.forEach((x,i)=>tot[i]+=x);I.put([m,...row],['mon',...Array(16).fill('num')]);});
+    I.put(['Grand Total',...tot.map(rd)],['totl',...Array(16).fill('totn')]);I.put([],[]);I.put([],[]);
+  });
+  if(!groups.length)I.put(['No monthly returns found.'],[]);
+  fin('Inward Supplies Table',I,[16,...Array(16).fill(14)]);
+}
+/* Cell styling: SheetJS (community) cannot write styles, so the saved file is opened and styles are added to the two tables */
+async function styleBook(buf,names,sty){
+  try{
+    const z=await JSZip.loadAsync(buf);let st=await z.file('xl/styles.xml').async('string');
+    const cnt=(tag)=>{const m=st.match(new RegExp('<'+tag+' count="(\\d+)"'));return m?+m[1]:0;};
+    const add=(tag,xml,n)=>{const c=cnt(tag);st=st.replace(new RegExp('<'+tag+' count="\\d+"'),'<'+tag+' count="'+(c+n)+'"').replace('</'+tag+'>',xml+'</'+tag+'>');return c;};
+    const F=add('fonts','<font><sz val="10"/><name val="Arial"/></font><font><b/><sz val="10"/><name val="Arial"/></font><font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Arial"/></font><font><b/><sz val="15"/><color rgb="FF1F4E78"/><name val="Arial"/></font><font><i/><sz val="9"/><color rgb="FF595959"/><name val="Arial"/></font>',5);
+    const L=add('fills','<fill><patternFill patternType="solid"><fgColor rgb="FF1F4E78"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FF2E75B6"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFDDEBF7"/><bgColor indexed="64"/></patternFill></fill>',3);
+    const NF='[&gt;=10000000]##\\,##\\,##\\,##0;[&gt;=100000]##\\,##\\,##0;##,##0',nfx='<numFmt numFmtId="200" formatCode="'+NF+'"/>';
+    if(/<numFmts count="\d+"\s*\/>/.test(st))st=st.replace(/<numFmts count="\d+"\s*\/>/,'<numFmts count="1">'+nfx+'</numFmts>');
+    else if(/<numFmts\b/.test(st))st=st.replace(/<numFmts count="(\d+)"/,(q,n)=>'<numFmts count="'+(+n+1)+'"').replace('</numFmts>',nfx+'</numFmts>');
+    else st=st.replace(/<fonts\b/,'<numFmts count="1">'+nfx+'</numFmts><fonts');
+    const bs='<left style="thin"><color rgb="FFBFBFBF"/></left><right style="thin"><color rgb="FFBFBFBF"/></right><top style="thin"><color rgb="FFBFBFBF"/></top><bottom style="thin"><color rgb="FFBFBFBF"/></bottom><diagonal/>';
+    const BD=add('borders','<border>'+bs+'</border>',1);
+    const X=(num,f,fl,b,al)=>'<xf numFmtId="'+num+'" fontId="'+f+'" fillId="'+fl+'" borderId="'+b+'" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment '+al+'/></xf>';
+    const defs={
+      title:X(0,F+3,0,0,'horizontal="left" vertical="center"'),
+      note:X(0,F+4,0,0,'horizontal="left" vertical="center"'),
+      meta:X(0,F+1,L+2,0,'horizontal="left" vertical="center"'),
+      hdr:X(0,F+2,L,BD,'horizontal="center" vertical="center" wrapText="1"'),
+      hdr2:X(0,F+2,L+1,BD,'horizontal="center" vertical="center" wrapText="1"'),
+      mon:X(0,F,0,BD,'horizontal="left" vertical="center"'),
+      num:X(200,F,0,BD,'horizontal="right" vertical="center"'),
+      int:X(200,F,0,BD,'horizontal="right" vertical="center"'),
+      totl:X(0,F+1,L+2,BD,'horizontal="left" vertical="center"'),
+      totn:X(200,F+1,L+2,BD,'horizontal="right" vertical="center"')};
+    const keys=Object.keys(defs),base=cnt('cellXfs'),idx={};
+    add('cellXfs',keys.map(k=>defs[k]).join(''),keys.length);keys.forEach((k,i)=>idx[k]=base+i);
+    z.file('xl/styles.xml',st);
+    for(const nm in sty){const n=names.indexOf(nm)+1;if(!n)continue;const fp='xl/worksheets/sheet'+n+'.xml';let x=await z.file(fp).async('string');const m=sty[nm];
+      x=x.replace(/<c r="([A-Z]+\d+)"([^>]*?)(\/?)>/g,(all,a,attrs,sl)=>{if(!m[a])return all;attrs=attrs.replace(/\s+s="\d+"/,'');return '<c r="'+a+'"'+attrs+' s="'+idx[m[a]]+'"'+sl+'>';});
+      /* addresses in the style map that have no cell yet become empty styled cells (true blanks, not empty text) */
+      const cn=t=>t.split('').reduce((q,ch)=>q*26+ch.charCodeAt(0)-64,0),have=new Set([...x.matchAll(/<c r="([A-Z]+\d+)"/g)].map(q=>q[1])),need={};
+      for(const a in m){if(have.has(a))continue;const q=a.match(/^([A-Z]+)(\d+)$/);(need[q[2]]=need[q[2]]||[]).push({a,c:cn(q[1])});}
+      if(Object.keys(need).length){
+        const sd=x.match(/<sheetData>([\s\S]*)<\/sheetData>|<sheetData\/>/);
+        const rows={};if(sd[1])for(const q of sd[1].matchAll(/<row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/row>)/g)){const rn=q[1].match(/\br="(\d+)"/)[1];rows[rn]={attrs:q[1].replace(/\/$/,''),cells:[...(q[2]||'').matchAll(/<c r="([A-Z]+)\d+"[^>]*?(?:\/>|>[\s\S]*?<\/c>)/g)].map(c=>({c:cn(c[1]),x:c[0]}))};}
+        for(const rn in need){if(!rows[rn])rows[rn]={attrs:' r="'+rn+'"',cells:[]};need[rn].forEach(o=>rows[rn].cells.push({c:o.c,x:'<c r="'+o.a+'" s="'+idx[m[o.a]]+'"/>'}));}
+        const body=Object.keys(rows).sort((p,q)=>p-q).map(rn=>'<row'+rows[rn].attrs+'>'+rows[rn].cells.sort((p,q)=>p.c-q.c).map(c=>c.x).join('')+'</row>').join('');
+        x=sd[1]!==undefined?x.replace(sd[0],'<sheetData>'+body+'</sheetData>'):x.replace('<sheetData/>','<sheetData>'+body+'</sheetData>');
+      }
+      z.file(fp,x);}
+    return await z.generateAsync({type:'arraybuffer',compression:'DEFLATE'});
+  }catch(e){return buf;}
+}
 /*NAMING*/
 const STATES={'01':'Jammu_and_Kashmir','02':'Himachal_Pradesh','03':'Punjab','04':'Chandigarh','05':'Uttarakhand','06':'Haryana','07':'Delhi','08':'Rajasthan','09':'Uttar_Pradesh','10':'Bihar','11':'Sikkim','12':'Arunachal_Pradesh','13':'Nagaland','14':'Manipur','15':'Mizoram','16':'Tripura','17':'Meghalaya','18':'Assam','19':'West_Bengal','20':'Jharkhand','21':'Odisha','22':'Chhattisgarh','23':'Madhya_Pradesh','24':'Gujarat','25':'Daman_and_Diu','26':'Dadra_Nagar_Haveli_Daman_Diu','27':'Maharashtra','28':'Andhra_Pradesh','29':'Karnataka','30':'Goa','31':'Lakshadweep','32':'Kerala','33':'Tamil_Nadu','34':'Puducherry','35':'Andaman_and_Nicobar','36':'Telangana','37':'Andhra_Pradesh','38':'Ladakh','97':'Other_Territory','99':'Centre_Jurisdiction'};
 const stateOf=g=>g&&STATES[g.slice(0,2)]||('State'+(g?g.slice(0,2):'XX'));
@@ -468,7 +581,7 @@ function table(){return '<tr>'+['File','Status','Period','3.1(a) Taxable','Net I
     return `<tr><td>${esc(s[0])}</td><td class="${r.status==='FILED'?'':'wn'}">${r.status}</td><td>${s[5]||''} ${s[4]||''}</td><td class="n">${fmt(s[8])}</td><td class="n">${fmt(s[13])}</td><td class="${cl}">${esc(s[23])}</td></tr>`;}).join('');}
 const sort=a=>a.sort((x,y)=>(x.R.h.gstin||'').localeCompare(y.R.h.gstin||'')||(x.R.h.year||'').localeCompare(y.R.h.year||'')||MONTHS.indexOf(x.R.h.period)-MONTHS.indexOf(y.R.h.period));
 $('ent').addEventListener('input',updPv);
-return {parseReturn,crossCheck,workbook,bundleName,entName,suggestEntity,updPv,zipAll,table,sort,MONTHS,stateOf};
+return {parseReturn,crossCheck,workbook,bundleName,entName,suggestEntity,updPv,zipAll,table,sort,MONTHS,stateOf,flatStyle,styleBook};
 })();
 
 /* ================= GSTR-2B engine (monthly Excel files from the portal) ================= */
@@ -700,13 +813,16 @@ const MODES={
     if(!g.length)return ent+'_GSTR1_Data.xlsx';
     return (g.length===1?ent+'_'+G3.stateOf(g[0])+'_'+g[0]+'_GSTR1':ent+'_AllStates_'+g.length+'GSTINs_GSTR1')+(fy?'_FY'+fy:'')+'.xlsx';},
   workbook:async()=>{
-    const wb=XLSX.utils.book_new();let cons=null;
-    G1.buildSheets(recs).forEach(s=>{if(s.gs)cons=s;const ws=XLSX.utils.aoa_to_sheet(s.rows);ws['!cols']=s.w.map(x=>({wch:x}));if(s.mg)ws['!merges']=s.mg;if(s.fm)s.fm.forEach(x=>{ws[XLSX.utils.encode_cell({r:x.r,c:x.c})]={t:'n',v:x.v,f:x.f};});ws['!freeze']={ySplit:1};numFmtWs(ws);XLSX.utils.book_append_sheet(wb,ws,s.name);});
-    const out=XLSX.write(wb,{type:'array',bookType:'xlsx'});
+    const wb=XLSX.utils.book_new(),sty={};let cons=null;
+    G1.buildSheets(recs).forEach(s=>{if(s.gs)cons=s;const ws=XLSX.utils.aoa_to_sheet(s.rows);ws['!cols']=s.w.map(x=>({wch:x}));if(s.mg)ws['!merges']=s.mg;if(s.fm)s.fm.forEach(x=>{ws[XLSX.utils.encode_cell({r:x.r,c:x.c})]={t:'n',v:x.v,f:x.f};});ws['!freeze']={ySplit:1};numFmtWs(ws);XLSX.utils.book_append_sheet(wb,ws,s.name);
+      const o=s.gs?{hdr:[1],skip:[0],txt:[1],tot:(r,w)=>{const d=w[XLSX.utils.encode_cell({r,c:0})];return !!d&&d.v==='Total';}}:(s.name==='Summary'?{txt:[4,5]}:{txt:[2,3],int:[9]});
+      try{G3.flatStyle(ws,s.name,sty,o);}catch(e){console.warn('Styling skipped for '+s.name,e);}});
+    let out=XLSX.write(wb,{type:'array',bookType:'xlsx'});
+    out=await G3.styleBook(out,wb.SheetNames,sty);
     try{return cons?await G1.styleGroupRow(out,cons.name,cons.gs,JSZip):out;}catch(e){console.warn('Heading borders skipped:',e);return out;}}},
  g3:{label:'GSTR-3B',
   sub:'Drop your GSTR-3B PDFs, a folder of them, or a ZIP.',
-  foot:"Excel sheets: Summary · 3.1 Outward · 4 ITC · 6.1 Payment · Checks. Each return's ITC arithmetic (A − B = C) is verified automatically.",
+  foot:"Excel sheets: Summary · 3.1 Outward · 4 ITC · 6.1 Payment · Checks · Outward Supplies Table · Inward Supplies Table. Each return's ITC arithmetic (A − B = C) is verified automatically.",
   parse:G3.parseReturn,check:G3.crossCheck,
   rec:(it,R,status)=>({path:it.path,buf:it.buf,R,status}),
   err:(it,e)=>({path:it.path,buf:it.buf,R:{h:{},t31:[],t4:{},t61:[],issues:['Could not read PDF: '+e.message],warn:[]},status:'ERROR'}),
