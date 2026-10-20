@@ -28,6 +28,7 @@ th{position:sticky;top:0;background:var(--card)}td.n{text-align:right;font-varia
 .ok{color:var(--ok)}.wn{color:var(--wn)}.er{color:var(--er)}.hide{display:none}
 input.t{font:inherit;padding:8px 10px;border:1px solid var(--ln);border-radius:8px;background:var(--card);color:var(--tx);width:170px}
 .credit{position:fixed;right:max(10px,env(safe-area-inset-right,0px));bottom:calc(6px + env(safe-area-inset-bottom,0px));font-size:20px;line-height:1;color:var(--mut);opacity:.4;pointer-events:none;user-select:none;z-index:10}
+.dzb{border:2px dashed var(--ln);border-radius:12px;text-align:center;padding:26px 14px;transition:.15s;flex:1 1 300px}.dzb.over{border-color:var(--ac);background:color-mix(in srgb,var(--ac) 8%,transparent)}.dzb .st{margin-top:10px;font-size:13px;color:var(--mut)}
 .modes{display:flex;gap:12px;flex-wrap:wrap}
 .mode{flex:1 1 240px;text-align:left;padding:14px 16px;border:2px solid var(--ln);border-radius:12px;background:var(--card);color:var(--tx)}
 .mode b{display:block;font-size:17px;margin-bottom:2px}.mode span{color:var(--mut);font-size:13px}
@@ -38,9 +39,13 @@ input.t{font:inherit;padding:8px 10px;border:1px solid var(--ln);border-radius:8
 <div class="card"><div class="sub" style="margin:0 0 10px"><b>Step 1 · What are you converting?</b></div>
 <div class="modes"><button class="mode" id="m1"><b>GSTR-1</b><span>Outward supplies. Excel with Summary, GSTR-1 Consolidated and one sheet for every table.</span></button>
 <button class="mode" id="m3"><b>GSTR-3B</b><span>Monthly summary return. Excel with Summary, 3.1 Outward, 4 ITC, 6.1 Payment, Checks, Outward Supplies Table and Inward Supplies Table.</span></button>
+<button class="mode" id="m4"><b>Outwards Reco</b><span>GSTR-1 vs GSTR-3B. Drop both sets of PDFs together; Excel gives the month-wise reconciliation of taxable value, IGST, CGST, SGST and Cess with the difference, plus Books vs GSTR 1 and Books vs GSTR 3B sheets with space for your pivot.</span></button>
 <button class="mode" id="m2b"><b>GSTR-2B</b><span>Monthly 2B Excel files from the portal. One workbook per GSTIN: every sheet from B2B to the right as its own tab, plus Checks, Completeness and Tie-out.</span></button></div></div>
 <div id="step2" class="hide">
 <div class="card"><div class="sub" style="margin:0 0 4px"><b>Step 2 · Select your <span id="mlab"></span> files</b></div><p class="sub" id="msub" style="margin:0 0 12px"></p>
+<div id="dropRc" class="hide" style="gap:14px;flex-wrap:wrap"><div class="dzb" id="dA"><div style="font-size:16px"><b>GSTR-1 box</b></div><div class="sub" style="margin:2px 0 0;font-size:13px">Drag &amp; drop all GSTR-1 PDFs (or a folder / ZIP) here</div>
+<div class="row"><label class="btn pri">Choose files / ZIP<input id="fA1" type="file" accept=".pdf,.zip" multiple></label><label class="btn"><span>Choose folder</span><input id="fA2" type="file" webkitdirectory multiple></label></div><div class="st" id="sA">Nothing added yet</div></div><div class="dzb" id="dB"><div style="font-size:16px"><b>GSTR-3B box</b></div><div class="sub" style="margin:2px 0 0;font-size:13px">Drag &amp; drop all GSTR-3B PDFs (or a folder / ZIP) here</div>
+<div class="row"><label class="btn pri">Choose files / ZIP<input id="fB1" type="file" accept=".pdf,.zip" multiple></label><label class="btn"><span>Choose folder</span><input id="fB2" type="file" webkitdirectory multiple></label></div><div class="st" id="sB">Nothing added yet</div></div></div>
 <div id="drop"><div style="font-size:16px"><b>Drag &amp; drop</b> PDFs, a folder, or a ZIP here</div>
 <div class="row"><label class="btn pri">Choose files / ZIP<input id="f1" type="file" accept=".pdf,.zip" multiple></label>
 <label class="btn"><span>Choose folder</span><input id="f2" type="file" webkitdirectory multiple></label></div></div>
@@ -48,6 +53,7 @@ input.t{font:inherit;padding:8px 10px;border:1px solid var(--ln);border-radius:8
 <div id="res" class="hide">
 <div class="card"><div class="stats" id="stats"></div>
 <div id="g3only" class="hide"><div class="row" style="justify-content:flex-start;align-items:center;margin:12px 0 6px"><label for="ent" style="font-size:14px"><b>Entity short name</b> (used in file names)</label><input class="t" id="ent" placeholder="e.g. McCain" autocomplete="off"></div>
+<div id="unitRow" class="row hide" style="justify-content:flex-start;align-items:center;margin:0 0 6px"><label for="unit" style="font-size:14px"><b>Second heading line</b> (blank = state name)</label><input class="t" id="unit" placeholder="leave blank for state" autocomplete="off"></div>
 <div id="pv" class="sub" style="margin:0 0 4px;font-size:13px"></div></div>
 <div class="row" style="justify-content:flex-start"><button class="pri" id="dx">Download Excel</button><button id="dz" class="hide">Download all PDFs in one folder (ZIP)</button></div>
 <div id="note" class="sub wn" style="margin:10px 0 0"></div><div id="msg" class="sub" style="margin:10px 0 0"></div></div>
@@ -458,6 +464,53 @@ function flatStyle(ws,name,sty,o){
   const rows=[];hdr.forEach(r=>{rows[r]={hpt:32};});ws['!rows']=rows;sty[name]=m;
 }
 /* Macro sheets: Outward Supplies Table and Inward Supplies Table (month-wise, one block per GSTIN and financial year) */
+let INWARD=null;
+/* Inward Supplies Table: written in the layout of the reference workbook (Aptos Narrow 11, six blocks A | B 4B1 | B 4B2 | C | 4D1 | 4D2) */
+async function inwardSheet(z,names){
+  const inw=INWARD;INWARD=null;if(!inw)return;
+  const sn=names.indexOf('Inward Supplies Table')+1;if(!sn)return;
+  let st=await z.file('xl/styles.xml').async('string');
+  const cnt=tag=>{const m=st.match(new RegExp('<'+tag+' count="(\\d+)"'));return m?+m[1]:0;};
+  const add=(tag,xml,k)=>{const c=cnt(tag);st=st.replace(new RegExp('<'+tag+' count="\\d+"'),'<'+tag+' count="'+(c+k)+'"').replace('</'+tag+'>',xml+'</'+tag+'>');return c;};
+  const font=b=>'<font>'+(b?'<b/>':'')+'<sz val="11"/><color rgb="FF000000"/><name val="Aptos Narrow"/><family val="2"/></font>';
+  const F=add('fonts',font(0)+font(1),2);
+  const sd=(n,s)=>s?'<'+n+' style="'+s+'"><color auto="1"/></'+n+'>':'<'+n+'/>',bx=(l,r,t,b)=>'<border>'+sd('left',l)+sd('right',r)+sd('top',t)+sd('bottom',b)+'<diagonal/></border>';
+  const BD=add('borders',bx('thin','thin','thin','thin')+bx('thin','thin','','thin')+bx('medium','','medium','medium')+bx('','','medium','medium')+bx('','medium','medium','medium'),5);
+  const nf='<numFmt numFmtId="201" formatCode="_ * #,##0_ ;_ * \\-#,##0_ ;_ * &quot;-&quot;??_ ;_ @_ "/>';
+  if(/<numFmts\b/.test(st))st=st.replace(/<numFmts count="(\d+)"/,(q,k)=>'<numFmts count="'+(+k+1)+'"').replace('</numFmts>',nf+'</numFmts>');
+  else st=st.replace(/<fonts\b/,'<numFmts count="1">'+nf+'</numFmts><fonts');
+  const X=(num,f,b,al)=>'<xf numFmtId="'+num+'" fontId="'+(F+f)+'" fillId="0" borderId="'+(b<0?0:BD+b)+'" xfId="0" applyNumberFormat="1" applyFont="1"'+(b<0?'':' applyBorder="1"')+' applyAlignment="1"><alignment '+al+'/></xf>';
+  const defs={ti:X(0,1,-1,'horizontal="left" vertical="top"'),gl:X(0,1,2,'horizontal="center" vertical="bottom"'),gm:X(0,1,3,'horizontal="center" vertical="bottom"'),gr:X(0,1,4,'horizontal="center" vertical="bottom"'),
+    hd:X(201,0,1,'horizontal="general" vertical="bottom"'),dt:X(17,0,0,'horizontal="general" vertical="bottom"'),nu:X(201,0,0,'horizontal="general" vertical="bottom"'),
+    tl:X(201,1,0,'horizontal="general" vertical="bottom"'),tn:X(201,1,0,'horizontal="general" vertical="bottom"')};
+  const keys=Object.keys(defs),base=cnt('cellXfs'),ix={};add('cellXfs',keys.map(k=>defs[k]).join(''),keys.length);keys.forEach((k,i)=>ix[k]=base+i);
+  z.file('xl/styles.xml',st);
+  const colL=n=>{let s='';while(n>0){const m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=Math.floor((n-1)/26);}return s;};
+  const xe=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const W=[2.543,12,15.2695,12.2695,12,6.4531,2.7266,15.2695,12.2695,10.4531,6.4531,2.6328,14.6328,11.8164,10.1797,6.2695,2.7266,15.2695,12.2695,10.4531,6.4531,2.7266,15.2695,12.2695,10.4531,6.4531,2.7266,15.2695,12.2695,10.4531,6.4531];
+  const need=v=>(String(Math.round(Math.abs(v))).length+Math.ceil((String(Math.round(Math.abs(v))).length-3)/2)+(v<0?1:0)+2)*0.95;
+  const BL=[[2,'(A) ITC Available'],[8,'(B) ITC Reversed 4B1'],[13,'(B) ITC Reversed 4B2'],[18,'(C) Net ITC Available'],[23,'4D1'],[28,'4D2']],
+    VC=[3,8,13,18,23,28],T4=['Integrated Tax ','Central Tax ','State Tax ','Cess '];
+  const rows={},mg=[],put=(c,r,v,s,f)=>{(rows[r]=rows[r]||{})[c]={v,s,f};},w=W.slice();
+  const multi=inw.groups.length>1;let last=2;
+  inw.groups.forEach((g,gi)=>{const o=gi*22,y0=+String(g.year).slice(0,4)||2000,tot=Array(24).fill(0);
+    put(2,2+o,g.name,'ti');put(2,3+o,g.line2,'ti');put(2,4+o,multi?'ITC - '+g.gstin+' FY '+g.year:'ITC','ti');
+    BL.forEach(([c,t],bi)=>{const c2=bi===0?6:c+3;mg.push(colL(c)+(6+o)+':'+colL(c2)+(6+o));for(let k=c;k<=c2;k++)put(k,6+o,k===c?t:'',k===c?'gl':(k===c2?'gr':'gm'));
+      const c0=bi===0?3:c;if(bi===0)put(2,7+o,'Row Labels','hd');for(let k=0;k<4;k++)put(c0+k,7+o,T4[k],'hd');});
+    g.rows.forEach((row,i)=>{const r=8+o+i,cm=(i+3)%12+1,yr=cm>=4?y0:y0+1;put(2,r,Date.UTC(yr,cm-1,1)/86400000+25569,'dt');
+      row.forEach((v,j)=>{const c=VC[Math.floor(j/4)]+j%4;put(c,r,v,'nu');tot[j]+=v;w[c-1]=Math.max(w[c-1],need(v));});});
+    put(2,20+o,'Grand Total','tl');
+    tot.forEach((v,j)=>{const c=VC[Math.floor(j/4)]+j%4;put(c,20+o,Math.round(v*100)/100,'tn','SUM('+colL(c)+(8+o)+':'+colL(c)+(19+o)+')');w[c-1]=Math.max(w[c-1],need(v)*1.1);});
+    last=20+o;});
+  if(!inw.groups.length)put(2,2,'No monthly returns found.','ti');
+  const rx=Object.keys(rows).map(Number).sort((a,b)=>a-b).map(r=>'<row r="'+r+'">'+Object.keys(rows[r]).map(Number).sort((a,b)=>a-b).map(c=>{
+    const x=rows[r][c],ref=colL(c)+r,s=' s="'+ix[x.s]+'"';
+    if(x.v==='')return '<c r="'+ref+'"'+s+'/>';
+    if(typeof x.v==='number')return '<c r="'+ref+'"'+s+'>'+(x.f?'<f>'+x.f+'</f>':'')+'<v>'+x.v+'</v></c>';
+    return '<c r="'+ref+'"'+s+' t="inlineStr"><is><t xml:space="preserve">'+xe(x.v)+'</t></is></c>';}).join('')+'</row>').join('');
+  const cols='<cols>'+w.map((x,i)=>'<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+x.toFixed(4)+'" customWidth="1"/>').join('')+'<col min="32" max="16384" width="9.1797"/></cols>';
+  z.file('xl/worksheets/sheet'+sn+'.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A2:AE'+last+'"/><sheetViews><sheetView workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="14.5"/>'+cols+'<sheetData>'+rx+'</sheetData>'+(mg.length?'<mergeCells count="'+mg.length+'">'+mg.map(m=>'<mergeCell ref="'+m+'"/>').join('')+'</mergeCells>':'')+'<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/></worksheet>');
+}
 function macroSheets(wb,sty){
   const FYO=MONTHS, T4=['Integrated Tax','Central Tax','State Tax','Cess'], ec=XLSX.utils.encode_cell;
   const groups=[];
@@ -489,27 +542,14 @@ function macroSheets(wb,sty){
   });
   if(!groups.length)O.put(['No monthly returns found.'],[]);
   fin('Outward Supplies Table',O,[16,22,18,18,18,14]);
-  /* Inward Supplies Table */
-  const heads=['(A) ITC Available','(B) ITC Reversed','(C) Net ITC Available','(D) Ineligible ITC'];
-  const I=B(),IC=17;
-  r0=I.put(['Inward Supplies Table'],['title'],24);I.span(r0,0,IC-1,'title');
-  r0=I.put(['Month-wise Table 4: (A) ITC Available, (B) ITC Reversed, (C) Net ITC Available, (D) Ineligible ITC.'],['note']);I.span(r0,0,IC-1,'note');
-  I.put([],[]);
-  groups.forEach(g=>{
-    r0=I.put(['GSTIN: '+(g.gstin||'-')+'     |     Financial year: '+(g.year||'-')],['meta'],20);I.span(r0,0,IC-1,'meta');
-    const h1=I.put(['Month',...heads.flatMap(h=>[h,'','',''])],Array(IC).fill('hdr'),22);
-    for(let k=0;k<4;k++)I.span(h1,1+k*4,4+k*4,'hdr');
-    const h2=I.put(['',...heads.flatMap(()=>T4)],Array(IC).fill('hdr2'),22);
-    I.mg.push({s:{r:h1,c:0},e:{r:h2,c:0}});I.st.push([h2,0,'hdr']);
-    const tot=Array(16).fill(0);
-    FYO.forEach(m=>{const r=g.byM[m],t=r?r.R.t4:{};let row=Array(16).fill(0);
-      if(r){const A=r.R.old?[t.A]:[t.A1,t.A2,t.A3,t.A4,t.A5],Bv=r.R.old?[t.B]:[t.B1,t.B2],D=t.D||sum([t.D1,t.D2],4);
-        row=[...sum(A,4),...sum(Bv,4),...(t.C||[0,0,0,0]),...(D||[0,0,0,0])].map(rd);}
-      row.forEach((x,i)=>tot[i]+=x);I.put([m,...row],['mon',...Array(16).fill('num')]);});
-    I.put(['Grand Total',...tot.map(rd)],['totl',...Array(16).fill('totn')]);I.put([],[]);I.put([],[]);
-  });
-  if(!groups.length)I.put(['No monthly returns found.'],[]);
-  fin('Inward Supplies Table',I,[16,...Array(16).fill(14)]);
+  /* Inward Supplies Table: figures are collected here; styleBook writes the sheet in the reference layout */
+  const unitTxt=(typeof $==='function'&&$('unit')&&$('unit').value||'').trim(),z4=[0,0,0,0],nz=x=>x?sum([x],4):z4;
+  INWARD={groups:groups.map(g=>{const any=Object.values(g.byM)[0];
+    return {gstin:g.gstin,year:g.year,name:(any&&any.R.h.name)||entName(),line2:unitTxt||(g.gstin?stateOf(g.gstin).replace(/_/g,' '):''),
+      rows:FYO.map(m=>{const r=g.byM[m],t=r?r.R.t4:{};if(!r)return Array(24).fill(0);
+        const A=r.R.old?[t.A]:[t.A1,t.A2,t.A3,t.A4,t.A5],B1=r.R.old?t.B:t.B1,B2=r.R.old?null:t.B2,hasD=t.D1||t.D2,D1=hasD?t.D1:t.D,D2=hasD?t.D2:null;
+        return [...sum(A,4),...nz(B1),...nz(B2),...(t.C?sum([t.C],4):z4),...nz(D1),...nz(D2)].map(rd);})};})};
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['']]),'Inward Supplies Table');
 }
 /* Cell styling: SheetJS (community) cannot write styles, so the saved file is opened and styles are added to the two tables */
 async function styleBook(buf,names,sty){
@@ -553,6 +593,7 @@ async function styleBook(buf,names,sty){
         x=sd[1]!==undefined?x.replace(sd[0],'<sheetData>'+body+'</sheetData>'):x.replace('<sheetData/>','<sheetData>'+body+'</sheetData>');
       }
       z.file(fp,x);}
+    try{await inwardSheet(z,names);}catch(e){console.error('Inward sheet',e);}
     return await z.generateAsync({type:'arraybuffer',compression:'DEFLATE'});
   }catch(e){return buf;}
 }
@@ -572,7 +613,7 @@ function pdfName(r,ent){const h=r.R.h,pc=periodCode(h);if(!h.gstin||!pc)return b
 function bundleName(ent,suffix){const g=[...new Set(recs.map(r=>r.R.h.gstin).filter(Boolean))],fy=[...new Set(recs.map(r=>r.R.h.year).filter(Boolean))].sort().join('_');
   if(!g.length)return ent+'_GSTR3B_Data'+suffix;
   return g.length===1?ent+'_'+stateOf(g[0])+'_'+g[0]+'_GSTR3B'+(fy?'_FY'+fy:'')+suffix:ent+'_AllStates_'+g.length+'GSTINs_GSTR3B'+(fy?'_FY'+fy:'')+suffix;}
-function updPv(){const el=$('pv');if(!el)return;if(typeof MODE!=='undefined'&&MODE==='g1'){el.textContent='Excel file name will be: '+MODES.g1.xlsxName();return;}const r=recs.find(x=>x.R.h.gstin&&periodCode(x.R.h));el.textContent=r?'File names will look like: '+pdfName(r,entName()):'';}
+function updPv(){const el=$('pv');if(!el)return;if(typeof MODE!=='undefined'&&(MODE==='g1'||MODE==='rc')){el.textContent='Excel file name will be: '+MODES[MODE].xlsxName();return;}const r=recs.find(x=>x.R.h.gstin&&periodCode(x.R.h));el.textContent=r?'File names will look like: '+pdfName(r,entName()):'';}
 /*END_NAMING*/
 async function zipAll(){const z=new JSZip(),used=new Set(),ent=entName(),folder=bundleName(ent,'_PDFs');
   recs.forEach(r=>{let n=pdfName(r,ent),k=1;const stem=n.replace(/\.pdf$/i,'');while(used.has(n.toLowerCase())){k++;n=stem+'_'+k+'.pdf';}used.add(n.toLowerCase());z.file(folder+'/'+n,r.buf.slice(0));});
@@ -797,6 +838,126 @@ const d2=$('drop2');['dragenter','dragover'].forEach(e=>d2.addEventListener(e,x=
 
 return {};
 })();
+/* ================= Outwards Reco: GSTR-1 vs GSTR-3B ================= */
+const RC=(()=>{
+const MON=['April','May','June','July','August','September','October','November','December','January','February','March'];
+const rd=x=>Math.round((+x||0)*100)/100;
+const xe=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const colL=n=>{let s='';while(n>0){const m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=Math.floor((n-1)/26);}return s;};
+const fyOf=r=>r.R.kind==='3B'?r.R.h.year:r.R.h.fy;
+/* ---- reading: each PDF is recognised as GSTR-1 or GSTR-3B by what the existing readers can find in it ---- */
+function parse(pages,path,force){
+  const f=(path||'').split(/[\\/]/).pop(),hint=/GSTR-?3B/i.test(f)?'3B':(/GSTR-?1(?![0-9A-Za-z])/i.test(f)?'1':'');
+  const as3=()=>{const R=G3.parseReturn(pages);R.kind='3B';return R;},as1=()=>{const R=G1.parseReturn(pages);R.kind='1';return R;};
+  const good=R=>R.kind==='3B'?!!(R.summaryDoc||(R.h.gstin&&R.h.period&&R.t31&&R.t31.length)):!!(R.h.gstin&&R.h.period&&R.rows.some(x=>x.table==='TL'));
+  let first=null;
+  if(force){const R=(force==='3B'?as3:as1)();if(good(R))return R;R.issues.push('This PDF does not look like a GSTR-'+force+' return - it was dropped in the GSTR-'+force+' box');return R;}
+  for(const fn of (hint==='1'?[as1,as3]:[as3,as1])){try{const R=fn();if(good(R))return R;if(!first)first=R;}catch(e){}}
+  if(first)return first;
+  throw new Error('not recognised as a GSTR-1 or GSTR-3B PDF');}
+const check=(R,path)=>R.kind==='3B'?G3.crossCheck(R,path):G1.crossCheck(R,path);
+/* one month of one return -> {taxable, IGST, CGST, SGST}. GSTR-3B: Table 3.1 (a)+(b)+(c)+(e), (d) reverse-charge inward supplies left out. GSTR-1: closing Total Liability line */
+function norm(r){const R=r.R,h=R.h||{};if(!h.gstin||!h.period)return null;
+  if(R.kind==='3B'){if(R.summaryDoc||!h.year||!R.t31||!R.t31.length)return null;
+    const s=[0,0,0,0,0];[0,1,2,4].forEach(i=>{const a=R.t31[i]||[];for(let k=0;k<5;k++)s[k]+=a[k]||0;});
+    return {kind:'3B',gstin:h.gstin,fy:h.year,mon:h.period,v:s.map(rd),status:r.status,name:h.name,trade:h.trade};}
+  if(R.kind==='1'){const tl=(R.rows||[]).find(x=>x.table==='TL');if(!tl||!h.fy)return null;
+    return {kind:'1',gstin:h.gstin,fy:h.fy,mon:h.period,v:[0,1,2,3,4].map(k=>rd(tl.vals[k])),status:r.status,name:h.name,trade:h.trade};}
+  return null;}
+function groups(recs){const gs=[];
+  recs.forEach(r=>{const n=norm(r);if(!n)return;const k=n.gstin+'|'+n.fy;let g=gs.find(x=>x.k===k);
+    if(!g){g={k,gstin:n.gstin,fy:n.fy,name:'',trade:'',m:{'1':{},'3B':{}}};gs.push(g);}if(!g.name&&n.name)g.name=n.name;if(!g.trade&&n.trade)g.trade=n.trade;
+    const c=g.m[n.kind][n.mon];if(!c||(c.status!=='FILED'&&n.status==='FILED'))g.m[n.kind][n.mon]=n;});
+  return gs.sort((a,b)=>(a.gstin+a.fy).localeCompare(b.gstin+b.fy));}
+/* ---- workbook: written by hand so every border, fill and number format can be set exactly ---- */
+const STYLES_RC="<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<styleSheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\" mc:Ignorable=\"x14ac x16r2 xr\" xmlns:x14ac=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/ac\" xmlns:x16r2=\"http://schemas.microsoft.com/office/spreadsheetml/2015/02/main\" xmlns:xr=\"http://schemas.microsoft.com/office/spreadsheetml/2014/revision\"><numFmts count=\"4\"><numFmt numFmtId=\"41\" formatCode=\"_ * #,##0_ ;_ * \\-#,##0_ ;_ * &quot;-&quot;_ ;_ @_ \"/><numFmt numFmtId=\"43\" formatCode=\"_ * #,##0.00_ ;_ * \\-#,##0.00_ ;_ * &quot;-&quot;??_ ;_ @_ \"/><numFmt numFmtId=\"164\" formatCode=\"mmm\\-yy\"/><numFmt numFmtId=\"166\" formatCode=\"_ * #,##0_ ;_ * \\-#,##0_ ;_ * &quot;-&quot;??_ ;_ @_ \"/></numFmts><fonts count=\"4\" x14ac:knownFonts=\"1\"><font><sz val=\"9\"/><name val=\"Calibri\"/><family val=\"2\"/></font><font><sz val=\"9\"/><name val=\"Calibri\"/><family val=\"2\"/></font><font><b/><sz val=\"11\"/><name val=\"Calibri\"/><family val=\"2\"/></font><font><sz val=\"11\"/><name val=\"Calibri\"/><family val=\"2\"/></font></fonts><fills count=\"4\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill><fill><patternFill patternType=\"solid\"><fgColor rgb=\"FFD9E1F2\"/><bgColor indexed=\"64\"/></patternFill></fill><fill><patternFill patternType=\"solid\"><fgColor rgb=\"FFD6DCE4\"/><bgColor indexed=\"64\"/></patternFill></fill></fills><borders count=\"5\"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style=\"medium\"><color auto=\"1\"/></left><right/><top style=\"medium\"><color auto=\"1\"/></top><bottom style=\"medium\"><color auto=\"1\"/></bottom><diagonal/></border><border><left/><right/><top style=\"medium\"><color auto=\"1\"/></top><bottom style=\"medium\"><color auto=\"1\"/></bottom><diagonal/></border><border><left/><right style=\"medium\"><color auto=\"1\"/></right><top style=\"medium\"><color auto=\"1\"/></top><bottom style=\"medium\"><color auto=\"1\"/></bottom><diagonal/></border><border><left style=\"thin\"><color auto=\"1\"/></left><right style=\"thin\"><color auto=\"1\"/></right><top style=\"thin\"><color auto=\"1\"/></top><bottom style=\"thin\"><color auto=\"1\"/></bottom><diagonal/></border></borders><cellStyleXfs count=\"2\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/><xf numFmtId=\"43\" fontId=\"1\" fillId=\"0\" borderId=\"0\" applyFont=\"0\" applyFill=\"0\" applyBorder=\"0\" applyAlignment=\"0\" applyProtection=\"0\"/></cellStyleXfs><cellXfs count=\"15\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\"/><xf numFmtId=\"0\" fontId=\"2\" fillId=\"2\" borderId=\"4\" xfId=\"0\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"3\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyFont=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"2\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyFont=\"1\"/><xf numFmtId=\"0\" fontId=\"3\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyFont=\"1\"/><xf numFmtId=\"0\" fontId=\"2\" fillId=\"0\" borderId=\"1\" xfId=\"0\" applyFont=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"2\" fillId=\"0\" borderId=\"2\" xfId=\"0\" applyFont=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"2\" fillId=\"0\" borderId=\"3\" xfId=\"0\" applyFont=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\"/></xf><xf numFmtId=\"164\" fontId=\"3\" fillId=\"0\" borderId=\"4\" xfId=\"0\" applyNumberFormat=\"1\" applyFont=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"right\"/></xf><xf numFmtId=\"41\" fontId=\"3\" fillId=\"0\" borderId=\"4\" xfId=\"0\" applyNumberFormat=\"1\" applyFont=\"1\" applyBorder=\"1\"/><xf numFmtId=\"166\" fontId=\"3\" fillId=\"0\" borderId=\"4\" xfId=\"1\" applyNumberFormat=\"1\" applyFont=\"1\" applyBorder=\"1\"/><xf numFmtId=\"0\" fontId=\"2\" fillId=\"2\" borderId=\"4\" xfId=\"0\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"166\" fontId=\"2\" fillId=\"2\" borderId=\"4\" xfId=\"1\" applyNumberFormat=\"1\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"0\" fontId=\"3\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyFont=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf><xf numFmtId=\"41\" fontId=\"2\" fillId=\"3\" borderId=\"4\" xfId=\"0\" applyNumberFormat=\"1\" applyFont=\"1\" applyFill=\"1\" applyBorder=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\"/></xf></cellXfs><cellStyles count=\"2\"><cellStyle name=\"Comma\" xfId=\"1\" builtinId=\"3\"/><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles><dxfs count=\"0\"/><tableStyles count=\"0\" defaultTableStyle=\"TableStyleMedium2\" defaultPivotStyle=\"PivotStyleLight16\"/><extLst><ext uri=\"{EB79DEF2-80B8-43e5-95BD-54CBDDF9020C}\" xmlns:x14=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\"><x14:slicerStyles defaultSlicerStyle=\"SlicerStyleLight1\"/></ext><ext uri=\"{9260A510-F301-46a8-8635-F512D64BE5F5}\" xmlns:x15=\"http://schemas.microsoft.com/office/spreadsheetml/2010/11/main\"><x15:timelineStyles defaultTimelineStyle=\"TimeSlicerStyleLight1\"/></ext></extLst></styleSheet>";
+function sheetsAndStyles(gs){
+  /* Style table copied from the reference workbook (Calibri 11 text, Excel's own style indexes):
+     1 header, 2 header-row style, 3 title, 4 column style, 5/6/7 group heading left/middle/right (medium box),
+     8 month, 9 number (difference), 10 number, 11 total label, 12 total number, 13 total-row style, 14 total difference */
+  const S_HDR=1,S_HROW=2,S_TITLE=3,S_COL=4,S_HL=5,S_HM=6,S_HR=7,S_DATE=8,S_DIFF=9,S_NUM=10,S_TL=11,S_TN=12,S_TROW=13,S_TD=14;
+  const VW=[23.6640625,23.109375,23.77734375,23.5546875,23.109375],GAP=8.88671875;
+  const nl=v=>{const d=String(Math.round(Math.abs(v))).length;return (d+(d>3?Math.ceil((d-3)/2):0)+(v<0?1:0)+3)*1.15;};
+  const titles=['Sum of Taxable value','Sum of IGST Amount','Sum of CGST Amount','Sum of SGST Amount','Sum of Cess Amount'];
+  const R1=7,RL=18,RT=19,Z=[0,0,0,0,0];
+  const used=new Set(),sheets=[];
+  const uniq=(base,gi,many)=>{let nm=(base+(many?' '+(gi+1):'')).slice(0,31);while(used.has(nm.toLowerCase()))nm=nm.slice(0,28)+'_'+gi;used.add(nm.toLowerCase());return nm;};
+  /* cfg: {sheet, title, leftHead, left (12 rows of 5 values, or null = empty space for the books pivot), midHead, mid, rightHead} */
+  const build=(g,gi,cfg)=>{
+    const rows={},mg=[],put=(c,r,val,st,f)=>{(rows[r]=rows[r]||{})[c]={val,st,f};};
+    const y0=+g.fy.slice(0,4),ser=i=>{const cm=(i+3)%12+1,yr=cm>=4?y0:y0+1;return Date.UTC(yr,cm-1,1)/86400000+25569;};
+    const L=cfg.left||MON.map(()=>Z),M=cfg.mid,wd={2:15};
+    const unit=(typeof $==='function'&&$('unit')&&$('unit').value||'').trim();
+    put(2,1,g.name||(typeof G3!=='undefined'&&G3.entName?G3.entName():''),S_TITLE);
+    put(2,2,unit||((typeof G3!=='undefined'&&G3.stateOf)?G3.stateOf(g.gstin).replace(/_/g,' '):g.gstin),S_TITLE);
+    put(2,3,cfg.title,S_TITLE);
+    [[2,7,cfg.leftHead],[9,13,cfg.midHead],[15,19,cfg.rightHead]].forEach(([c1,c2,t])=>{mg.push(colL(c1)+'5:'+colL(c2)+'5');
+      for(let c=c1;c<=c2;c++)put(c,5,c===c1?t:'',c===c1?S_HL:(c===c2?S_HR:S_HM));});
+    /* header row */
+    if(cfg.left)put(2,6,'ReturnPeriod',S_HDR);else put(2,6,'',S_HDR);
+    for(let k=0;k<5;k++){put(3+k,6,cfg.left?titles[k]:'',S_HDR);put(9+k,6,titles[k],S_HDR);put(15+k,6,titles[k],S_HDR);}
+    /* months */
+    for(let i=0;i<12;i++){const r=R1+i;
+      if(cfg.left)put(2,r,ser(i),S_DATE);else put(2,r,'',S_DATE);
+      for(let k=0;k<5;k++){
+        if(cfg.left)put(3+k,r,L[i][k],S_NUM);else put(3+k,r,'',S_NUM);
+        put(9+k,r,M[i][k],S_NUM);
+        put(15+k,r,rd(L[i][k]-M[i][k]),S_DIFF,colL(3+k)+r+'-'+colL(9+k)+r);}}
+    /* totals */
+    put(2,RT,cfg.left?'Total':'',S_TL);
+    for(let k=0;k<5;k++){
+      const sa=rd(L.reduce((s,x)=>s+x[k],0)),sb=rd(M.reduce((s,x)=>s+x[k],0)),sum=c=>'SUM('+colL(c)+R1+':'+colL(c)+RL+')';
+      wd[3+k]=Math.max(VW[k],nl(sa),...L.map(x=>nl(x[k])));wd[9+k]=Math.max(VW[k],nl(sb),...M.map(x=>nl(x[k])));wd[15+k]=Math.max(VW[k],nl(sa-sb),...L.map((x,i)=>nl(x[k]-M[i][k])));
+      if(cfg.left)put(3+k,RT,sa,S_TN,sum(3+k));else put(3+k,RT,'',S_TN);
+      put(9+k,RT,sb,S_TN,sum(9+k));put(15+k,RT,rd(sa-sb),S_TD,colL(3+k)+RT+'-'+colL(9+k)+RT);}
+    const rowAttr=r=>r===6?' s="'+S_HROW+'" customFormat="1"':(r===RT?' s="'+S_TROW+'" customFormat="1" ht="13.5" customHeight="1"':'');
+    const rx=Object.keys(rows).map(Number).sort((a,b)=>a-b).map(r=>'<row r="'+r+'" spans="2:19"'+rowAttr(r)+'>'+Object.keys(rows[r]).map(Number).sort((a,b)=>a-b).map(c=>{
+      const x=rows[r][c],ref=colL(c)+r,s=' s="'+x.st+'"';
+      if(x.val===''||x.val==null)return '<c r="'+ref+'"'+s+'/>';
+      if(typeof x.val==='number')return '<c r="'+ref+'"'+s+'>'+(x.f?'<f>'+x.f+'</f>':'')+'<v>'+x.val+'</v></c>';
+      return '<c r="'+ref+'"'+s+' t="inlineStr"><is><t xml:space="preserve">'+xe(x.val)+'</t></is></c>';}).join('')+'</row>').join('');
+    const col=(c,w,fit)=>'<col min="'+c+'" max="'+c+'" width="'+w+'" style="'+S_COL+'"'+(fit?' bestFit="1"':'')+(fit!==undefined?' customWidth="1"':'')+'/>';
+    let cols='<cols>'+col(1,2,false);
+    for(let c=2;c<=19;c++){if(c===8||c===14)cols+=col(c,GAP);else cols+=col(c,+wd[c].toFixed(8),true);}
+    cols+='<col min="20" max="16384" width="'+GAP+'" style="'+S_COL+'"/></cols>';
+    const xml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="B1:S19"/><sheetViews><sheetView showGridLines="0"'+(sheets.length===0?' tabSelected="1"':'')+' zoomScale="67" workbookViewId="0"><selection activeCell="C6" sqref="C6"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="14.5"/>'+cols+
+      '<sheetData>'+rx+'</sheetData><mergeCells count="'+mg.length+'">'+mg.map(m=>'<mergeCell ref="'+m+'"/>').join('')+'</mergeCells><pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/><pageSetup fitToHeight="0" orientation="landscape"/></worksheet>';
+    sheets.push({name:cfg.sheet,xml});};
+  gs.forEach((g,gi)=>{
+    const many=gs.length>1,A=MON.map(m=>g.m['1'][m]?g.m['1'][m].v:Z),B=MON.map(m=>g.m['3B'][m]?g.m['3B'][m].v:Z);
+    build(g,gi,{sheet:uniq('GSTR 3B VS GSTR 1',gi,many),title:'GSTR 3B VS GSTR 1',leftHead:'As per GSTR-1',left:A,midHead:'As per GSTR-3B',mid:B,rightHead:'Difference'});
+    build(g,gi,{sheet:uniq('Books vs GSTR 1',gi,many),title:'Books VS GSTR 1',leftHead:'As per Sales register',left:null,midHead:'As per GSTR-1',mid:A,rightHead:'Variance'});
+    build(g,gi,{sheet:uniq('Books vs GSTR 3B',gi,many),title:'Books VS GSTR 3B',leftHead:'As per Sales register',left:null,midHead:'As per GSTR-3B',mid:B,rightHead:'Variance'});});
+  return {sheets,styles:STYLES_RC};}
+async function workbook(){
+  const gs=groups(recs);if(!gs.length)throw new Error('No monthly GSTR-1 or GSTR-3B return could be read.');
+  const {sheets,styles}=sheetsAndStyles(gs),z=new JSZip(),X='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n',RT='http://schemas.openxmlformats.org/officeDocument/2006/relationships/';
+  z.file('[Content_Types].xml',X+'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'+sheets.map((s,i)=>'<Override PartName="/xl/worksheets/sheet'+(i+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>').join('')+'</Types>');
+  z.file('_rels/.rels',X+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="'+RT+'officeDocument" Target="xl/workbook.xml"/></Relationships>');
+  z.file('xl/workbook.xml',X+'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="'+RT.slice(0,-1)+'"><sheets>'+sheets.map((s,i)=>'<sheet name="'+xe(s.name)+'" sheetId="'+(i+1)+'" r:id="rId'+(i+1)+'"/>').join('')+'</sheets><calcPr calcId="191029"/></workbook>');
+  z.file('xl/_rels/workbook.xml.rels',X+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+sheets.map((s,i)=>'<Relationship Id="rId'+(i+1)+'" Type="'+RT+'worksheet" Target="worksheets/sheet'+(i+1)+'.xml"/>').join('')+'<Relationship Id="rId'+(sheets.length+1)+'" Type="'+RT+'styles" Target="styles.xml"/></Relationships>');
+  z.file('xl/styles.xml',styles);sheets.forEach((s,i)=>z.file('xl/worksheets/sheet'+(i+1)+'.xml',s.xml));
+  return z.generateAsync({type:'uint8array',compression:'DEFLATE'});}
+/* ---- screen ---- */
+const key=r=>{const h=r.R.h||{};return [h.gstin||'',fyOf(r)||'',MON.indexOf(h.period)];};
+const sort=a=>a.sort((x,y)=>{const p=key(x),q=key(y);return p[0].localeCompare(q[0])||p[1].localeCompare(q[1])||p[2]-q[2]||(x.R.kind||'').localeCompare(y.R.kind||'');});
+const table=()=>'<tr>'+['File','Return','GSTIN','Period','Taxable value','IGST','CGST','SGST','Cess','Checks'].map(x=>`<th>${x}</th>`).join('')+'</tr>'+recs.map(r=>{const n=norm(r),cl=r.R.issues.length?'er':(r.R.warn.length?'wn':'ok');
+  return `<tr><td>${esc(base(r.path))}</td><td>${r.R.kind==='3B'?'GSTR-3B':(r.R.kind==='1'?'GSTR-1':'?')}</td><td>${esc(r.R.h.gstin||'')}</td><td>${esc((r.R.h.period||'')+' '+(fyOf(r)||''))}</td>`+(n?n.v.map(x=>`<td class="n">${fmt(x)}</td>`).join(''):'<td></td><td></td><td></td><td></td><td></td>')+`<td class="${cl}">${esc([...r.R.issues,...r.R.warn].join('; ')||'OK')}</td></tr>`;}).join('');
+const after=()=>{$('ent').value=G3.suggestEntity();G3.updPv();const gs=groups(recs),msg=[];
+  gs.forEach(g=>[['1','GSTR-1'],['3B','GSTR-3B']].forEach(([k,l])=>{const miss=MON.filter(m=>!g.m[k][m]);if(miss.length)msg.push(g.gstin+' '+g.fy+': '+l+' not found for '+miss.map(m=>m.slice(0,3)).join(', '));}));
+  $('note').textContent=gs.length?(msg.length?'Months with no file are shown as 0 in the reco. '+msg.join(' | '):''):'No monthly GSTR-1 or GSTR-3B return could be read from these files.';};
+const xlsxName=()=>{const ent=G3.entName(),gs=groups(recs),g=[...new Set(gs.map(x=>x.gstin))],fy=[...new Set(gs.map(x=>x.fy))].sort().join('_');
+  if(!g.length)return ent+'_Outwards_Reco.xlsx';
+  return (g.length===1?ent+'_'+G3.stateOf(g[0])+'_'+g[0]:ent+'_AllStates_'+g.length+'GSTINs')+'_GSTR1_vs_3B_Reco'+(fy?'_FY'+fy:'')+'.xlsx';};
+const mode={label:'Outwards Reco',
+  sub:'Drop your GSTR-1 and GSTR-3B PDFs together (all months, both returns), a folder of them, or a ZIP.',
+  foot:'Excel: for each GSTIN and financial year, three sheets. GSTR 3B VS GSTR 1 is laid out as As per GSTR-1 | As per GSTR-3B | Difference, April to March with a Total row. Books vs GSTR 1 and Books vs GSTR 3B keep an empty block on the left for your sales-register pivot, with the return figures in the middle and Variance (Books minus return) on the right. GSTR-1 figures are the closing Total Liability line (taxable value, IGST, CGST, SGST, Cess); GSTR-3B figures are Table 3.1 (a)+(b)+(c)+(e), leaving out (d) inward supplies on reverse charge. The Difference columns (GSTR-1 minus GSTR-3B) and the Total row are live formulas. A month with no file shows as 0.',
+  parse,check,rec:(it,R,status)=>({path:it.path,R,status}),
+  err:(it,e)=>({path:it.path,R:{h:{},rows:[],t31:[],t4:{},t61:[],kind:'?',issues:['Could not read PDF: '+e.message],warn:[]},status:'ERROR'}),
+  sort,table,after,xlsxName,workbook};
+return {mode,groups,norm,sheetsAndStyles};
+})();
+
 /* ================= return-type modes ================= */
 const MODES={
  g1:{label:'GSTR-1',
@@ -830,35 +991,38 @@ const MODES={
   after:()=>{$('ent').value=G3.suggestEntity();G3.updPv();},
   xlsxName:()=>G3.bundleName(G3.entName(),'.xlsx'),
   workbook:async()=>G3.workbook(),
-  zip:()=>G3.zipAll()}
+  zip:()=>G3.zipAll()},
+ rc:RC.mode
 };
 function setModePdf(k){
   MODE=k;recs=[];const M=MODES[k];
-  $('m1').classList.toggle('sel',k==='g1');$('m3').classList.toggle('sel',k==='g3');
+  $('m1').classList.toggle('sel',k==='g1');$('m3').classList.toggle('sel',k==='g3');$('m4').classList.toggle('sel',k==='rc');
   $('step2').classList.remove('hide');$('mlab').textContent=M.label;$('msub').textContent=M.sub+' Everything is read inside your browser; no file is uploaded anywhere.';$('foot').textContent=M.foot;
   $('prog').classList.add('hide');$('res').classList.add('hide');$('note').textContent='';$('msg').textContent='';
   $('g3only').classList.remove('hide');$('dz').classList.toggle('hide',k!=='g3');
   $('f1').value='';$('f2').value='';
+  $('drop').classList.toggle('hide',k==='rc');$('unitRow').classList.toggle('hide',k!=='rc'&&k!=='g3');$('dropRc').style.display=k==='rc'?'flex':'none';['A','B'].forEach(i=>{$('f'+i+'1').value='';$('f'+i+'2').value='';$('s'+i).textContent='Nothing added yet';});
 }
 function setMode(k){
-  if(k==='b2'){MODE='b2';recs=[];$('m1').classList.remove('sel');$('m3').classList.remove('sel');$('m2b').classList.add('sel');
+  if(k==='b2'){MODE='b2';recs=[];$('m1').classList.remove('sel');$('m3').classList.remove('sel');$('m4').classList.remove('sel');$('m2b').classList.add('sel');
     $('step2').classList.add('hide');$('p2b').classList.remove('hide');$('foot').textContent='';return;}
   $('m2b').classList.remove('sel');$('p2b').classList.add('hide');setModePdf(k);}
-$('m1').onclick=()=>setMode('g1');$('m3').onclick=()=>setMode('g3');$('m2b').onclick=()=>setMode('b2');
-async function run(files){
+$('m1').onclick=()=>setMode('g1');$('m4').onclick=()=>setMode('rc');$('m3').onclick=()=>setMode('g3');$('m2b').onclick=()=>setMode('b2');
+async function run(files,box){
   const key=MODE,M=MODES[key];if(!M)return;
   $('prog').classList.remove('hide');$('res').classList.add('hide');$('ptxt').textContent='Reading files…';$('bar').firstChild.style.width='0%';
-  const items=await collect(files);recs=[];
+  const items=await collect(files);if(box)recs=recs.filter(r=>r.box!==box);else recs=[];
   if(!items.length){$('ptxt').textContent='No PDF files found in what you selected.';return;}
   for(let i=0;i<items.length;i++){
     const it=items[i];$('bar').firstChild.style.width=(100*i/items.length)+'%';$('ptxt').textContent=`Reading PDF ${i+1} of ${items.length}`;
     await new Promise(r=>setTimeout(r));
-    try{const R=M.parse(await extract(it.buf));const status=M.check(R,it.path);recs.push(M.rec(it,R,status));}
-    catch(e){recs.push(M.err(it,e));}
+    try{const R=M.parse(await extract(it.buf),it.path,box==='A'?'1':(box==='B'?'3B':undefined));const status=M.check(R,it.path);const rc=M.rec(it,R,status);rc.box=box;recs.push(rc);}
+    catch(e){const rc=M.err(it,e);rc.box=box;recs.push(rc);}
     if(MODE!==key)return;
   }
   $('bar').firstChild.style.width='100%';$('ptxt').textContent='Done';
-  M.sort(recs);render();}
+  M.sort(recs);render();if(box)boxStatus();}
+function boxStatus(){[['A','1','GSTR-1'],['B','3B','GSTR-3B']].forEach(([i,k,l])=>{const n=recs.filter(r=>r.box===i);const ok=n.filter(r=>!r.R.issues.length).length;$('s'+i).textContent=n.length?n.length+' '+l+' PDF'+(n.length>1?'s':'')+' read'+(ok<n.length?' ('+(n.length-ok)+' with problems - see table)':''):'Nothing added yet';});}
 function render(){
   const M=MODES[MODE];
   const bad=recs.filter(r=>r.R.issues.length).length,warn=recs.filter(r=>!r.R.issues.length&&r.R.warn.length).length,dr=recs.filter(r=>r.status!=='FILED').length;
@@ -871,4 +1035,9 @@ const drop=$('drop');
 ['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('over');}));
 drop.addEventListener('drop',async ev=>{const files=[];for(const it of [...(ev.dataTransfer.items||[])]){const en=it.webkitGetAsEntry&&it.webkitGetAsEntry();if(en)await walk(en,files);else if(it.getAsFile)files.push(it.getAsFile());}run(files.length?files:[...ev.dataTransfer.files]);});
 $('f1').onchange=e=>run([...e.target.files]);$('f2').onchange=e=>run([...e.target.files]);
+['A','B'].forEach(i=>{const d=$('d'+i);
+ ['dragenter','dragover'].forEach(e=>d.addEventListener(e,ev=>{ev.preventDefault();d.classList.add('over');}));
+ ['dragleave','drop'].forEach(e=>d.addEventListener(e,ev=>{ev.preventDefault();d.classList.remove('over');}));
+ d.addEventListener('drop',async ev=>{const files=[];for(const it of [...(ev.dataTransfer.items||[])]){const en=it.webkitGetAsEntry&&it.webkitGetAsEntry();if(en)await walk(en,files);else if(it.getAsFile)files.push(it.getAsFile());}run(files.length?files:[...ev.dataTransfer.files],i);});
+ $('f'+i+'1').onchange=e=>{run([...e.target.files],i);e.target.value='';};$('f'+i+'2').onchange=e=>{run([...e.target.files],i);e.target.value='';};});
 </script><div class="credit">Made by Yash Goel</div></body></html>
