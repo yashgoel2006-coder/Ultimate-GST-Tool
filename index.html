@@ -14,8 +14,8 @@ html{scroll-padding-top:env(safe-area-inset-top,0px)}
 main{max-width:1000px;margin:0 auto;padding:20px 16px 40px}
 h1{font-size:22px;margin:0 0 4px}p.sub{color:var(--mut);margin:0 0 18px}
 .card{background:var(--card);border:1px solid var(--ln);border-radius:12px;padding:16px;margin-bottom:16px}
-#drop,#drop2,#drop5,#drop9{border:2px dashed var(--ln);border-radius:12px;text-align:center;padding:34px 16px;transition:.15s}
-#drop.over,#drop2.over,#drop5.over,#drop9.over{border-color:var(--ac);background:color-mix(in srgb,var(--ac) 8%,transparent)}
+#drop,#drop2,#drop5,#drop8,#drop9{border:2px dashed var(--ln);border-radius:12px;text-align:center;padding:34px 16px;transition:.15s}
+#drop.over,#drop2.over,#drop5.over,#drop8.over,#drop9.over{border-color:var(--ac);background:color-mix(in srgb,var(--ac) 8%,transparent)}
 button,label.btn{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--ln);background:var(--card);color:var(--tx);padding:9px 14px;display:inline-block}
 button.pri{background:var(--ac);border-color:var(--ac);color:#fff}button:disabled{opacity:.45;cursor:not-allowed}
 .row{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:12px}
@@ -50,6 +50,7 @@ input.t{font:inherit;padding:8px 10px;border:1px solid var(--ln);border-radius:8
 <button class="mode" id="m4"><b>Outwards Reco</b><span>GSTR-1 vs GSTR-3B. Drop both sets of PDFs together; Excel gives the month-wise reconciliation of taxable value, IGST, CGST, SGST and Cess with the difference, plus Books vs GSTR 1 and Books vs GSTR 3B sheets with space for your pivot.</span></button>
 <button class="mode" id="m9"><b>GSTR-1 vs 3B vs 9</b><span>Annual comparison. Drop the GSTR-1, GSTR-3B and GSTR-9 PDFs for a financial year (consolidated annual summaries or monthly PDFs); Excel gives the three returns side by side with the 9 vs 3B and 9 vs 1 differences.</span></button>
 <button class="mode" id="m2b"><b>GSTR-2B</b><span>Monthly 2B Excel files from the portal. One workbook per GSTIN: every sheet from B2B to the right as its own tab, plus Checks, Completeness and Tie-out.</span></button>
+<button class="mode" id="m8a"><b>GSTR-9 Table 8A</b><span>Annual 8A Excel file from the portal (R9_8A_GSTIN_….xlsx). One workbook per GSTIN: a flat 8A Conso register of B2B, credit/debit notes, ECO and their amendments with the ITC considered for 8A, plus a month-wise summary and Checks.</span></button>
 <button class="mode" id="m5"><b>Sort Returns</b><span>Drop a folder or ZIP (ZIPs inside ZIPs are fine) of mixed PDFs for any number of GSTINs. The tool uses the file name when it is complete and reads the PDF itself when it is not, to find GSTR-1 and GSTR-3B returns, and gives a ZIP sorted as GSTIN → FY → return type → 12 monthly files, with a missing-month grid.</span></button></div></div>
 <div id="step2" class="hide">
 <div class="card"><div class="sub" style="margin:0 0 4px"><b>Step 2 · Select your <span id="mlab"></span> files</b></div><p class="sub" id="msub" style="margin:0 0 12px"></p>
@@ -93,8 +94,21 @@ input.t{font:inherit;padding:8px 10px;border:1px solid var(--ln);border-radius:8
 <div id="p2b" class="hide">
 <div class="card"><div class="sub" style="margin:0 0 4px"><b>Step 2 · Select your GSTR-2B files</b></div><p class="sub" style="margin:0 0 12px">Drop the monthly GSTR-2B Excel files downloaded from the portal (named like 042025_GSTIN_GSTR2B_….xlsx), or a ZIP of them. Everything is read inside your browser; no file is uploaded anywhere. You get one workbook per GSTIN.</p>
 <div id="drop2"><div style="font-size:16px"><b>Drag &amp; drop</b> GSTR-2B .xlsx files or a ZIP here</div><div class="row"><label class="btn pri">Choose files / ZIP<input id="gb" type="file" accept=".xlsx,.zip" multiple></label></div></div><div id="ptxt2" class="sub" style="margin:10px 0 0"></div></div>
-<div id="res2" class="hide"><div class="card"><div class="stats" id="stats2"></div><div class="row" id="dl2" style="justify-content:flex-start"></div><div id="msg2" class="sub" style="margin:10px 0 0"></div></div><div class="card"><div class="tw"><table id="tb2"></table></div></div></div>
+<div id="res2" class="hide"><div class="card"><div class="stats" id="stats2"></div><div id="c2box" style="margin:0 0 12px;padding:10px 12px;border:1px solid var(--ln);border-radius:8px"><label style="display:block"><input type="checkbox" id="c2on"> <b>Also add a "2B Conso" tab</b> - one flat register: B2B, credit/debit notes, ECO, ISD, imports, then amendments. Months stay in order, same columns as the B2B sheet, subtotal row follows the filter. Leave unticked for the usual one-tab-per-sheet workbook.</label>
+<div id="c2sub" style="margin:8px 0 0 22px;opacity:.5"><label style="display:block;margin:3px 0">Amendments (B2BA, B2B-CDNRA, ECOA, ISDA, IMPGA): <select id="c2am"><option value="rep">replace the original row if it is in the files, else add the revised row (+ "Amendment replacements" log tab)</option><option value="app">add as separate rows, keep the originals</option><option value="off">leave out</option></select></label>
+<label style="display:block;margin:3px 0"><input type="checkbox" id="c2neg" checked> Credit notes (and ISD credit notes): note value, taxable value and taxes negative</label>
+<label style="display:block;margin:3px 0"><input type="checkbox" id="c2eco" checked> Include ECO</label><label style="display:block;margin:3px 0"><input type="checkbox" id="c2isd" checked> Include ISD</label><label style="display:block;margin:3px 0"><input type="checkbox" id="c2imp" checked> Include imports (IMPG, IMPGSEZ)</label></div></div>
+<div class="row" id="dl2" style="justify-content:flex-start"></div><div id="msg2" class="sub" style="margin:10px 0 0"></div></div><div class="card"><div class="tw"><table id="tb2"></table></div></div></div>
 <p class="sub">Every sheet from B2B to the right in the portal file (B2B, B2BA, B2B-CDNR, B2B-CDNRA, ECO, ISD, IMPG, ITC Reversal, Rejected sheets, etc.) becomes its own tab, with all months stacked one below the other and a Month column added (e.g. May-25). Figures are copied exactly as in the portal file and no column is dropped (where the portal changed a sheet's columns during the year, columns are matched by heading). The tabs use the GST portal's look. Extra tabs: Checks, Completeness (every non-empty source cell and column heading checked month by month in each sheet) and Tie-out (each month's sheet totals against the 2B's own ITC summary).</p>
+</div>
+<div id="p8a" class="hide">
+<div class="card"><div class="sub" style="margin:0 0 4px"><b>Step 2 &middot; Select your GSTR-9 Table 8A file</b></div><p class="sub" style="margin:0 0 12px">Drop the 8A Excel file downloaded from the portal (named like R9_8A_GSTIN_1.xlsx), or a ZIP of several (one file per GSTIN). Everything is read inside your browser; no file is uploaded anywhere. You get one workbook per GSTIN.</p>
+<div id="drop8"><div style="font-size:16px"><b>Drag &amp; drop</b> the GSTR-9 8A .xlsx file(s) or a ZIP here</div><div class="row"><label class="btn pri">Choose files / ZIP<input id="g8" type="file" accept=".xlsx,.zip" multiple></label></div></div><div id="ptxt8" class="sub" style="margin:10px 0 0"></div></div>
+<div id="res8" class="hide"><div class="card"><div class="stats" id="stats8"></div><div style="margin:0 0 12px;padding:10px 12px;border:1px solid var(--ln);border-radius:8px"><b>8A Conso options</b>
+<label style="display:block;margin:6px 0 3px">Amendments (B2BA, B2B-CDNRA, ECOA): <select id="c8am"><option value="rep">replace the original row with the revised one, ITC considered as shown on the amended row + "Amendment replacements" log tab</option><option value="app">add as separate rows, keep the originals</option><option value="off">leave out</option></select></label>
+<label style="display:block;margin:3px 0"><input type="checkbox" id="c8neg" checked> Credit notes: note value, taxable value, taxes and ITC considered negative</label><label style="display:block;margin:3px 0"><input type="checkbox" id="c8eco" checked> Include ECO (and ECOA)</label></div>
+<div class="row" id="dl8" style="justify-content:flex-start"></div><div id="msg8" class="sub" style="margin:10px 0 0"></div></div><div class="card"><div class="tw"><table id="tb8"></table></div></div></div>
+<p class="sub">The workbook has: <b>8A Conso</b> (every row of B2B, B2B-CDNR and ECO, then the amendments, with the GSTR-2B period as Month, the tax per portal and the "ITC considered for 8A" columns; the subtotal row follows the filter), <b>Amendment replacements</b> (old vs new values), <b>Month summary</b> (live formulas: ITC considered by GSTR-2B period and by section) and <b>Checks</b> (row and amount tie-out against the source sheets, documents dated outside the FY, duplicates, amendments that could not be matched).</p>
 </div>
 <p class="sub" id="foot"></p>
 </main>
@@ -990,7 +1004,9 @@ function dupcheck(p,cat,o){if(!p)return;const g=kcol(p,/GSTIN of supplier$/),no=
   p.d.forEach(x=>{const q=[dt<0?cat:x.c[dt],x.c[g],x.c[no],x.c[dd]].join('|');if(seen[q])o.issues.push('Duplicate document '+x.c[no]+' ('+x.c[g]+')');seen[q]=1;});}
 // Excel error cells (#N/A, #REF! ...) are read as blanks by the reader library, so they are turned into visible text first and reported
 const BERR={0:'#NULL!',7:'#DIV/0!',15:'#VALUE!',23:'#REF!',29:'#NAME?',36:'#NUM!',42:'#N/A',255:'#GETTING_DATA'};
-function errfix(ws,n,o){if(!ws)return;let k=0;for(const a in ws){if(a.charAt(0)==='!')continue;const c=ws[a];if(c&&c.t==='e'){c.t='s';c.v=c.w||BERR[c.v]||'#ERROR';c.w=c.v;k++;}}
+function errfix(ws,n,o){if(!ws)return;let k=0,mr=-1,mc=-1;for(const a in ws){if(a.charAt(0)==='!')continue;const c=ws[a];if(c&&c.t==='e'){c.t='s';c.v=c.w||BERR[c.v]||'#ERROR';c.w=c.v;k++;}try{const p=XLSX.utils.decode_cell(a);if(p.r>mr)mr=p.r;if(p.c>mc)mc=p.c;}catch(e){}}
+  /* some portal files carry a wrong <dimension> (e.g. A1:V6 for 255 rows) - widen the range to the cells really present */
+  if(ws['!ref']&&mr>=0){const r=XLSX.utils.decode_range(ws['!ref']);if(mr>r.e.r||mc>r.e.c){r.e.r=Math.max(r.e.r,mr);r.e.c=Math.max(r.e.c,mc);ws['!ref']=XLSX.utils.encode_range(r);}}
   if(k)o.warn.push(k+' Excel error cell(s) such as #N/A in sheet '+n+' were copied as text - check them');}
 function parse2b(buf,name){
   const m=name.match(/(\d{2})(\d{4})_([0-9A-Z]{15})_GSTR2B/i),o={name,issues:[],warn:[],p:{},order:[],cnt:{},tie:[],netv:0};
@@ -1049,6 +1065,7 @@ function sheetXml(sh){
   const R=sh.rows,rx=[];
   for(let r=0;r<R.length;r++){const row=R[r],cs=[];
     for(let c=0;c<row.length;c++){const v=row[c],s=sh.style(r,c,v),ref=colL(c)+(r+1);
+      if(v&&typeof v==='object'&&v.f){cs.push('<c r="'+ref+'"'+(s?' s="'+s+'"':'')+'><f>'+xe(v.f)+'</f></c>');continue;}
       if(v===''||v==null){if(s)cs.push('<c r="'+ref+'" s="'+s+'"/>');continue;}
       if(typeof v==='number'&&isFinite(v))cs.push('<c r="'+ref+'"'+(s?' s="'+s+'"':'')+'><v>'+v+'</v></c>');
       else cs.push('<c r="'+ref+'" t="inlineStr"'+(s?' s="'+s+'"':'')+'><is><t xml:space="preserve">'+xe(v)+'</t></is></c>');}
@@ -1076,15 +1093,51 @@ async function buildXlsx(sheets){
   z.file('xl/_rels/workbook.xml.rels',X+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+sheets.map((s,i)=>'<Relationship Id="rId'+(i+1)+'" Type="'+RT+'worksheet" Target="worksheets/sheet'+(i+1)+'.xml"/>').join('')+'<Relationship Id="rId'+(sheets.length+1)+'" Type="'+RT+'styles" Target="styles.xml"/></Relationships>');
   z.file('xl/styles.xml',STYLES);sheets.forEach((s,i)=>z.file('xl/worksheets/sheet'+(i+1)+'.xml',sheetXml(s)));
   return z.generateAsync({type:'uint8array',compression:'DEFLATE'});}
+const opt2=()=>({on:$('c2on').checked,neg:$('c2neg').checked,am:$('c2am').value,eco:$('c2eco').checked,isd:$('c2isd').checked,imp:$('c2imp').checked});
+// Flat "2B Conso" register. Columns are found by heading text; amendment sheets use their "Revised" band and keep the original number in the match key.
+const SECT=[['B2B',0,'B2B',0],['B2B-CDNR',1,'Credit/Debit note',0],['ECO',3,'ECO',0,'eco'],['ISD',2,'ISD',0,'isd'],['IMPG',4,'Import',0,'imp'],['IMPGSEZ',4,'Import SEZ',0,'imp'],
+ ['B2BA',0,'Amended B2B',1],['B2B-CDNRA',1,'Amended credit/debit note',1],['ECOA',3,'Amended ECO',1,'eco'],['ISDA',2,'Amended ISD',1,'isd'],['IMPGA',4,'Amended import',1,'imp'],['IMPGSEZA',4,'Amended import SEZ',1,'imp']];
+function conso(g,o){
+  const lf=k=>k.replace(/ #\d+$/,'').split(' | ').pop().trim(),Q=a=>[a,a,a,a,a],X=(...a)=>a,P=/^place of supply/i,T=/^taxable value/i,I=/^itc availability/i,RS=/^reason/i,SO=/^source/i;
+  const TG=[['GSTIN',Q(/^gstin/i)],['Trade/Legal name',Q(/^trade/i)],['Invoice number',X(/^invoice number/i,/^note number/i,/^isd document number/i,/^document number/i,/^number$/i)],
+   ['Invoice type',X(/^invoice type/i,/^note type/i,/^isd document type/i,/^document type/i,null)],['Invoice Date',X(/^invoice date/i,/^note date/i,/^isd document date/i,/^document date/i,/^date$/i)],
+   ['Invoice Value(\u20B9)',X(/^invoice value/i,/^note value/i,null,/^document value/i,null)],['Place of supply',X(P,P,null,P,null)],['Supply Attract Reverse Charge',X(/^supply attract/i,/^supply attract/i,null,null,null)],
+   ['Taxable Value (\u20B9)',X(T,T,null,T,T)],['Integrated Tax(\u20B9)',Q(/^integrated tax/i)],['Central Tax(\u20B9)',Q(/^central tax/i)],['State/UT Tax(\u20B9)',Q(/^state\/ut tax/i)],['Cess(\u20B9)',Q(/^cess/i)],
+   ['GSTR-1/1A/IFF/GSTR-5 Period',Q(/period$/i)],['GSTR-1/1A/IFF/GSTR-5 Filing Date',Q(/filing date$/i)],['ITC Availability',X(I,I,/^eligibility of itc/i,I,null)],['Reason',X(RS,RS,null,RS,null)],
+   ['Applicable % of Tax Rate',X(/^applicable/i,/^applicable/i,null,null,null)],['Source',X(SO,SO,null,SO,null)],['IRN',X(/^irn$/i,/^irn$/i,null,/^irn$/i,null)],['IRN Date',X(/^irn date/i,/^irn date/i,null,/^irn date/i,null)]];
+  const out=[],log=[],idx={};let nrep=0,want=0;
+  SECT.forEach(([n,t,lab,am,gp])=>{if(!g.p[n]||(gp&&!o[gp])||(am&&o.am==='off'))return;
+    const a=align(g.p[n]),lv=a.keys.map(lf),ky=a.keys.map(k=>k.replace(/ #\d+$/,'')),
+      find=re=>{const c=[];lv.forEach((h,j)=>{if(re.test(h))c.push(j);});if(!c.length)return -1;return 1+(am?(c.find(j=>/revised/i.test(ky[j]))??c.find(j=>!/original/i.test(ky[j]))??c[0]):c[0]);},
+      ix=TG.map(x=>x[1][t]?find(x[1][t]):-1),onx=am?1+lv.findIndex((h,j)=>/number$/i.test(h)&&/original/i.test(ky[j])):0;
+    for(let i=a.hdr[1]+1;i<a.rows.length;i++){const r=a.rows[i];if(!r.slice(1).some(c=>c!==''&&c!=null))continue;want++;
+      const ty=ix[3]>0?String(r[ix[3]]||''):'',ng=o.neg&&(t===1||t===2)&&/credit/i.test(ty),
+        row=[r[0],...ix.map((j,k)=>{let v=j<0?'':r[j];if(v==null)v='';if(ng&&typeof v==='number'&&(k===5||(k>=8&&k<=12)))v=-v;return v;}),'',lab];
+      if(!am){const kk=t+'|'+row[1]+'|'+row[3];if(idx[kk]==null)idx[kk]=out.length;}
+      else{const ok=onx>0?String(r[onx]):'',at=idx[t+'|'+row[1]+'|'+ok];
+        if(o.am==='rep'&&at!=null){const old=out[at];
+          [2,3,4,5,6,7,8,9,10,11,12,15].forEach(k=>{const x=old[k+1],y=row[k+1],d=(typeof x==='number'||typeof y==='number')?Math.abs((+x||0)-(+y||0))>.004:String(x)!==String(y);if(d)log.push([7+at,row[1],ok,old[0],TG[k][0],x,y]);});
+          row[0]=old[0];row[22]='Amended - original row replaced with revised values';out[at]=row;nrep++;continue;}
+        row[22]=o.am==='rep'?'Amended - revised only; original not in these '+g.rs.length+' files, so not duplicated':'Amended - revised row; original row also listed';}
+      out.push(row);}});
+  const sub=c=>({f:'SUBTOTAL(9,'+colL(c)+'7:'+colL(c)+(6+out.length)+')'});
+  const rows=[['GSTR-2B conso - '+(g.rs[0]&&g.rs[0].gstin||'')],['FY '+g.fy],[''],[''],['Subtotal (follows filter)','','','','','','','','',sub(9),sub(10),sub(11),sub(12),sub(13)],
+    ['Month',...TG.map(x=>x[0]),'Amendment status','Section'],...out];
+  return {rows,log,n:out.length,ok:out.length===want-nrep,msg:out.length+' rows = '+want+' source rows - '+nrep+' replaced by amendments'};}
 async function wb2(g){
   const sheets=[];
   g.order.forEach(n=>{const a=align(g.p[n]),hf=a.hdr[0],hl=a.hdr[1],hn=hl-hf+1,heights={};
     for(let r=0;r<3;r++)heights[r]=18;heights[3]=20;for(let r=hf;r<=hl;r++)heights[r]=28;
     sheets.push({name:n,rows:a.rows,mg:a.mg,wd:a.wd,freeze:hl+1,filter:[hl,a.rows.length-1],heights,
       style:(r,c,v)=>r<3?1:r===3?2:r<=hl?((hn===3&&r===hf&&c>0)?4:3):(typeof v==='number'&&a.amt[c]?6:5)});});
+  const o2=opt2(),cres=o2.on?conso(g,o2):null;
+  if(cres){sheets.unshift({name:'2B Conso',rows:cres.rows,wd:[10,17,30,20,12,12,14,16,10,14,13,13,13,10,12,12,12,20,10,10,20,12,40,22],freeze:6,filter:[5,cres.rows.length-1],heights:{5:30},
+    style:(r,c,v)=>r===5?3:r===4?(c>=9&&c<=13?6:5):r<5?5:(typeof v==='number'&&(c===6||(c>=9&&c<=13))?6:5)});
+    if(cres.log.length)sheets.splice(1,0,{name:'Amendment replacements',rows:[['Conso row','Supplier GSTIN','Original number','Month','Field','Old value (original)','New value (amended)'],...cres.log],wd:[11,18,22,10,28,22,22],freeze:1,filter:[0,cres.log.length],heights:{0:30},style:(r,c,v)=>r===0?3:(typeof v==='number'&&c>=5?6:5)});}
   const r2=x=>Math.round(x*100)/100,M=mlab;
   const chk=[['File','Month','Net taxable value (B2B + debit notes - credit notes)','Rows in all sheets','Result'],...g.rs.map(r=>[r.name,M(r),r2(r.netv),nrows(r),[...r.issues,...r.warn].join('; ')||'OK'])];
   chk.push(['','','','',''],['Completeness check','','',g.comp.cells,g.comp.fail.length?'FAILED - '+g.comp.fail.join(' | '):'OK - checked month by month in each sheet ('+g.comp.checks+' sheet-month checks): all '+g.comp.cells+' non-empty source cells and every column heading are in this workbook']);
+  if(cres)chk.push(['','','','',''],['2B Conso tab','','',cres.n,(cres.ok?'OK - ':'CHECK - ')+cres.msg]);
   sheets.push({name:'Checks',rows:chk,wd:[44,16,24,14,120],freeze:1,filter:[0,g.rs.length],heights:{0:42},style:(r,c,v)=>r===0?3:c===2?6:(c===4&&!/^OK/.test(v)?7:5)});
   sheets.push({name:'Completeness',rows:g.comp.rows,wd:[26,14,14,14,12],freeze:1,filter:[0,g.comp.rows.length-1],heights:{0:30},style:(r,c,v)=>r===0?3:(c===4&&v!=='OK'?7:5)});
   const tie=[['File','Month','Check','Sheet IGST','Sheet CGST','Sheet SGST','Sheet Cess','Portal summary IGST','Portal CGST','Portal SGST','Portal Cess','Difference IGST','Diff CGST','Diff SGST','Diff Cess','Status']];
@@ -1092,9 +1145,163 @@ async function wb2(g){
   sheets.push({name:'Tie-out',rows:tie,wd:[44,16,34,14,14,14,12,16,14,14,12,16,12,12,12,12],freeze:1,filter:[0,tie.length-1],heights:{0:30},style:(r,c,v)=>r===0?3:c>=3&&c<=14?6:(c===15&&v==='MISMATCH'?7:5)});
   return buildXlsx(sheets);}
 $('dl2').onclick=async e=>{const g=e.target.dataset&&e.target.dataset.g;if(g)try{$('msg2').textContent='Building workbook…';save2('GSTR_2b_'+g+'_FY'+G2[g].fy+'.xlsx',await wb2(G2[g]));}catch(x){$('msg2').textContent='Error: '+x.message;}};
+$('c2on').onchange=()=>{$('c2sub').style.opacity=$('c2on').checked?1:.5;};
 $('gb').onchange=e=>run2([...e.target.files]);
 const d2=$('drop2');regPaste(d2,files=>run2(files));['dragenter','dragover'].forEach(e=>d2.addEventListener(e,x=>{x.preventDefault();d2.classList.add('over');}));
 ['dragleave','drop'].forEach(e=>d2.addEventListener(e,x=>{x.preventDefault();d2.classList.remove('over');}));d2.addEventListener('drop',e=>run2([...e.dataTransfer.files]));
+
+/* ---------- GSTR-9 Table 8A Conso (annual "R9_8A" Excel file from the portal) ---------- */
+const T8=[['B2B',0,'B2B',0],['B2B-CDNR',1,'Credit/Debit note',0],['ECO',2,'ECO',0],['B2BA',0,'Amended B2B',1],['B2B-CDNRA',1,'Amended credit/debit note',1],['ECOA',2,'Amended ECO',1]];
+const H8=['GSTIN of supplier / ECO','Trade/Legal name','Invoice / Note / Document number','Invoice / Note / Document type','Invoice / Note / Document date','Invoice / Note / Document value(\u20B9)','Place of supply','Supply Attract Reverse Charge','Taxable Value (\u20B9)','Integrated Tax(\u20B9)','Central Tax(\u20B9)','State/UT Tax(\u20B9)','Cess(\u20B9)','GSTR-1/1A/IFF/GSTR-5 Period','GSTR-1/1A/IFF/GSTR-5 Filing Date','ITC Availability','ITC considered for 8A - Integrated Tax(\u20B9)','ITC considered for 8A - Central Tax(\u20B9)','ITC considered for 8A - State/UT Tax(\u20B9)','ITC considered for 8A - Cess(\u20B9)','Reason'];
+const N8=[6,9,10,11,12,13,17,18,19,20];               // numeric columns of a conso row (row = [month, ...21 fields, status, section])
+const NS8=new Set(N8),TAXC=[10,11,12,13],ITCC=[17,18,19,20];
+const MON8={JAN:1,FEB:2,MAR:3,APR:4,MAY:5,JUN:6,JUL:7,AUG:8,SEP:9,OCT:10,NOV:11,DEC:12};
+const per8=s=>{const m=/^([A-Za-z]{3})[-\s]?(\d{2,4})$/.exec(String(s||'').trim());if(!m||!MON8[m[1].toUpperCase()])return 1e9;const y=+m[2]<100?2000+ +m[2]:+m[2];return y*12+MON8[m[1].toUpperCase()];};
+const pd8=s=>{const m=/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/.exec(String(s==null?'':s).trim());return m?new Date(+m[3],+m[2]-1,+m[1]):null;};
+const opt8=()=>({am:$('c8am').value,neg:$('c8neg').checked,eco:$('c8eco').checked});
+// columns are found by heading text (two header rows; the band above them says Original / Revised on the amendment sheets)
+function cols8(R,hr){
+  const top=R[hr]||[],sub=R[hr+1]||[],bnd=hr>0?(R[hr-1]||[]):[],n=Math.max(top.length,sub.length),C=[];let pt='',pb='';
+  for(let j=0;j<n;j++){const t=top[j]==null?'':String(top[j]).trim(),s=sub[j]==null?'':String(sub[j]).trim(),b=bnd[j]==null?'':String(bnd[j]).trim();
+    if(t!=='')pt=t;if(b!=='')pb=b;C.push({l:s||t,p:pt,b:pb});}
+  return C;}
+function fmap8(C,am){
+  const ob=c=>/original/i.test(c.b),F=(re,pre,orig)=>C.findIndex(c=>re.test(c.l)&&(!pre||pre.test(c.p))&&(am?(orig?ob(c):!ob(c)):true)),
+    NN=/^(invoice|note|document) number$/i,TY=/^(invoice|note|document) type$/i,DD=/^(invoice|note|document) date$/i,G4=[/^integrated/i,/^central/i,/^state/i,/^cess/i];
+  return {gs:F(/^gstin of/i),nm:F(/^trade/i),no:F(NN),ty:F(TY),dt:F(DD),va:F(/^(invoice|note|document) value/i),pos:F(/^place of supply/i),rc:F(/^supply attract/i),tv:F(/^taxable value/i),
+    t:G4.map(r=>F(r,/^tax amount/i)),i:G4.map(r=>F(r,/^actual itc/i)),p1:F(/^gstr-1.*period$/i),fd:F(/^gstr-1.*filing date$/i),p2:F(/^gstr-2b period/i),av:F(/^itc availability/i),rs:F(/^reason/i),
+    on:am?F(NN,null,1):-1,od:am?F(DD,null,1):-1,ot:am?F(TY,null,1):-1};}
+function parse8(buf,name){
+  const o={name,issues:[],warn:[],rows:{},cnt:{},fy:'',gstin:'',legal:'',gen:'',genT:0};
+  let wb;try{wb=XLSX.read(buf,{type:'array'});}catch(e){o.issues.push('Could not open the file: '+e.message);return o;}
+  const sh=n=>{const ws=wb.Sheets[n];if(!ws)return null;errfix(ws,n,o);const R=sx(wb,n);if(!R)return null;const s=ws['!ref']?XLSX.utils.decode_range(ws['!ref']).s.c:0;if(s>0)R.forEach(r=>r.unshift(...Array(s).fill(null)));return R;};
+  const rm=sh('Read me');
+  if(rm)rm.slice(0,14).forEach(r=>{const i=r.findIndex(c=>typeof c==='string'&&c.trim()),k=i<0?'':String(r[i]).trim().toLowerCase(),v=r.slice(i+1).find(c=>c!=null&&String(c).trim()!=='');if(v==null)return;
+    if(k==='financial year')o.fy=String(v).trim();else if(k==='gstin')o.gstin=String(v).trim();else if(k==='legal name')o.legal=String(v).trim();else if(k==='date of generation'){o.gen=String(v).trim();const m=/^(\d+)\/(\d+)\/(\d+)\s+(\d+):(\d+):(\d+)/.exec(o.gen);if(m)o.genT=+new Date(+m[3],+m[2]-1,+m[1],+m[4],+m[5],+m[6]);}});
+  if(!o.gstin)o.issues.push('No GSTIN found in the "Read me" sheet - is this the 8A file from the portal?');
+  if(!/^\d{4}-\d{2}$/.test(o.fy))o.issues.push('Financial year not found in the "Read me" sheet');
+  T8.forEach(([n,t,lab,am])=>{const R=sh(n);if(!R){if(n==='B2B')o.issues.push('Sheet B2B not found');return;}
+    const first=[/^gstin of/i,/^gstin of/i,/^gstin of/i,/^invoice number/i,/^note type/i,/^document number/i][T8.findIndex(x=>x[0]===n)];
+    const hr=R.slice(0,12).findIndex(r=>typeof r[0]==='string'&&first.test(r[0].trim()));
+    if(hr<0){o.issues.push('Sheet '+n+' not read - header row not found');return;}
+    const C=cols8(R,hr),m=fmap8(C,am),need={gs:'GSTIN',no:'number',dt:'date',tv:'taxable value',p2:'GSTR-2B period',av:'ITC availability'},miss=[];
+    for(const k in need)if(m[k]<0)miss.push(need[k]);['IGST','CGST','SGST','Cess'].forEach((x,q)=>{if(m.t[q]<0)miss.push('tax '+x);if(m.i[q]<0)miss.push('ITC considered '+x);});
+    if(am&&(m.on<0||m.od<0))miss.push('original number/date');
+    if(miss.length){o.issues.push('Sheet '+n+' not read - column(s) not found: '+miss.join(', '));return;}
+    const g=(r,j)=>j<0||r[j]==null?'':r[j],rows=[];
+    for(let i=hr+2;i<R.length;i++){const r=R[i];if(blank(r))continue;
+      rows.push({f:[g(r,m.gs),g(r,m.nm),g(r,m.no),g(r,m.ty),g(r,m.dt),g(r,m.va),g(r,m.pos),g(r,m.rc),g(r,m.tv),...m.t.map(j=>g(r,j)),g(r,m.p1),g(r,m.fd),g(r,m.av),...m.i.map(j=>g(r,j)),g(r,m.rs)],
+        on:String(g(r,m.on)).trim(),od:String(g(r,m.od)).trim(),ot:String(g(r,m.ot)).trim(),per:String(g(r,m.p2)).trim(),sr:i+1});}
+    o.rows[n]=rows;o.cnt[n]=rows.length;});
+  if(!Object.values(o.rows).some(r=>r.length)&&!o.issues.some(x=>/not read|not found/.test(x))){
+    const R=sh('B2B');o.issues.push('No data rows were read. Sheets in the file: '+wb.SheetNames.join(', ')+(R?'. B2B has '+R.length+' rows; first cells: '+R.slice(0,8).map(r=>JSON.stringify(r[0]==null?null:String(r[0]).slice(0,24))).join(' | '):''));}
+  return o;}
+// flat register. Row = [Month (GSTR-2B period), 21 fields, Amendment status, Section]
+function conso8(g,o){
+  const out=[],log=[],idx={},idx2={},exp={},expT={},st={rep:0,none:0,dm:[],noo:[]};
+  const key=(t,gs,no,dt,ty)=>[t,gs,no,dt,t===1?ty:''].join('|'),key2=(t,gs,no,ty)=>[t,gs,no,t===1?ty:''].join('|');
+  const bump=(lab,row,s)=>{exp[lab]=(exp[lab]||0)+s;const a=expT[lab]=expT[lab]||N8.map(()=>0);N8.forEach((c,q)=>{if(typeof row[c]==='number')a[q]+=s*row[c];});};
+  T8.forEach(([n,t,lab,am])=>{const rows=g.rows[n];if(!rows||(t===2&&!o.eco)||(am&&o.am==='off'))return;
+    rows.forEach(x=>{const f=x.f.slice();
+      if(o.neg&&t===1&&/^cn$|credit/i.test(String(f[3])))N8.forEach(c=>{if(typeof f[c-1]==='number')f[c-1]=-f[c-1];});
+      const row=[x.per,...f,'',lab];
+      if(!am){const k=key(t,f[0],f[2],f[4],f[3]);if(idx[k]==null)idx[k]=out.length;const k2=key2(t,f[0],f[2],f[3]);if(idx2[k2]==null)idx2[k2]=out.length;out.push(row);bump(lab,row,1);return;}
+      const ok=key(t,f[0],x.on,x.od,x.ot),at=idx[ok];
+      if(o.am==='rep'&&at!=null){const old=out[at];
+        [3,4,5,6,7,8,9,10,11,12,13,16,17,18,19,20].forEach(k=>{const a=old[k],b=row[k],d=(typeof a==='number'||typeof b==='number')?Math.abs((+a||0)-(+b||0))>.004:String(a)!==String(b);if(d)log.push([6+at+1,row[1],x.on,old[0],H8[k-1],a,b]);});
+        bump(old[23],old,-1);row[0]=old[0];row[22]='Amended in '+(x.per||'?')+' - original row replaced with the revised document; ITC considered as shown on the amended row';out[at]=row;bump(lab,row,1);st.rep++;
+        idx[key(t,f[0],f[2],f[4],f[3])]=at;return;}
+      if(o.am==='rep'){const dm=idx2[key2(t,f[0],x.on,x.ot)]!=null;
+        row[22]=dm?'Amended in '+x.per+' - revised row only; a document with the same number but a different date is in the file, so it was NOT replaced':'Amended in '+x.per+' - revised row only; original is not in this file, so nothing to replace';
+        (dm?st.dm:st.noo).push(f[0]+' / '+x.on);}
+      else row[22]='Amended in '+x.per+' - revised row; original row also listed';
+      idx[key(t,f[0],f[2],f[4],f[3])]=out.length;out.push(row);bump(lab,row,1);});});
+  return {out,log,st,exp,expT};}
+function chk8(g,o,c){
+  const R=[],f2=x=>Math.round(x*100)/100,out=c.out,sec={},secT={};
+  out.forEach(r=>{sec[r[23]]=(sec[r[23]]||0)+1;const a=secT[r[23]]=secT[r[23]]||N8.map(()=>0);N8.forEach((k,q)=>{if(typeof r[k]==='number')a[q]+=r[k];});});
+  let bad=0;const add=(a,b,s,t,res)=>{if(!/^(OK|Info)/.test(res))bad++;R.push([a,b,s,t,res]);};
+  const tot=T8.reduce((s,x)=>s+(sec[x[2]]||0),0),exp=Object.values(c.exp).reduce((s,x)=>s+x,0);
+  T8.forEach(([n,t,lab,am])=>{if(!g.rows[n]||(t===2&&!o.eco)||(am&&o.am==='off'))return;
+    const e=c.exp[lab]||0,a=sec[lab]||0,ok=e===a;add('Rows - '+n,'Section "'+lab+'"',g.rows[n].length,a,ok?'OK - '+(g.rows[n].length===a?'every source row is in the Conso':(g.rows[n].length-a)+' original row(s) replaced by amendments'):'CHECK - expected '+e+' rows, found '+a);
+    const d=N8.map((k,q)=>f2((secT[lab]||N8.map(()=>0))[q]-(c.expT[lab]||N8.map(()=>0))[q])),b=d.some(x=>Math.abs(x)>0.05);
+    if(b)add('Totals - '+n,'Sum of every numeric column differs from the source sheet','','','CHECK - difference '+d.join(' / '));});
+  add('Rows - all sheets','Conso rows = source rows - rows replaced by amendments',Object.values(g.rows).reduce((s,x)=>s+x.length,0),out.length,out.length===exp?'OK - '+out.length+' rows':'CHECK - expected '+exp);
+  if(o.am==='rep'){add('Amendments','Revised rows that replaced an original row','',c.st.rep,'Info - '+c.st.rep+' replaced (see "Amendment replacements" tab)');
+    if(c.st.dm.length)add('Amendments','Original number found but with a different date - NOT replaced, check manually','',c.st.dm.length,'CHECK - '+c.st.dm.slice(0,4).join('; ')+(c.st.dm.length>4?'; ...':''));
+    if(c.st.noo.length)add('Amendments','Original not in this file - revised row shown alone','',c.st.noo.length,'Info - '+c.st.noo.slice(0,4).join('; ')+(c.st.noo.length>4?'; ...':''));}
+  const y=parseInt(g.fy,10),a0=new Date(y,3,1),a1=new Date(y+1,2,31),oo=[];
+  if(y)out.forEach((r,i)=>{const d=pd8(r[5]);if(d&&(d<a0||d>a1))oo.push('row '+(7+i)+' '+r[3]+' dated '+r[5]);});
+  add('Date within FY '+g.fy,'The 8A rules take only documents dated in the financial year','',oo.length,oo.length?'CHECK - '+oo.slice(0,4).join('; ')+(oo.length>4?'; ...':''):'OK - every document date falls within the FY');
+  const nd=out.filter(r=>!pd8(r[5])).length;if(nd)add('Document dates','Rows whose date could not be read','',nd,'CHECK - '+nd+' row(s) have a blank or unreadable date');
+  const seen={},du=[];out.forEach((r,i)=>{if(r[23].indexOf('Amended')===0)return;const k=[r[23],r[1],r[3],r[5],r[4]].join('|');if(seen[k])du.push('row '+(7+i)+' '+r[3]+' ('+r[1]+')');seen[k]=1;});
+  add('Duplicates','Same section, GSTIN, number, date and type twice','',du.length,du.length?'CHECK - '+du.slice(0,4).join('; '):'OK - none');
+  const no=out.filter(r=>/^no$/i.test(String(r[16]).trim()));add('ITC not available','Rows with ITC Availability = No (ITC considered is nil)','',no.length,'Info - tax on these rows: '+f2(no.reduce((s,r)=>s+TAXC.reduce((q,k)=>q+(+r[k]||0),0),0)).toLocaleString('en-IN'));
+  const all=T8.reduce((s,[n,t,lab,am])=>{if(!g.rows[n]||(t===2&&!o.eco)||(am&&o.am==='off'))return s;
+    return s+g.rows[n].reduce((q,x)=>{const sg=o.neg&&t===1&&/^cn$|credit/i.test(String(x.f[3]))?-1:1;return q+sg*ITCC.reduce((z,k)=>z+(+x.f[k-1]||0),0);},0);},0);
+  const itc=ITCC.reduce((s,k)=>s+out.reduce((q,r)=>q+(+r[k]||0),0),0),dif=f2(itc-all);
+  add('ITC considered - every source row','Sum of the ITC columns over all rows of all sheets (how the portal builds the 8A summary)','',f2(all),Math.abs(dif)>0.05?(o.am==='rep'?'Info - the Conso total is '+dif.toLocaleString('en-IN')+' different from the sum of every source row, because replaced originals no longer count and the amended rows carry the ITC shown on them':'CHECK - the Conso total is '+dif.toLocaleString('en-IN')+' different from the sum of every source row - look at the amendment rows'):'OK - '+f2(all).toLocaleString('en-IN',{minimumFractionDigits:2}));add('Table 8A total','ITC considered (IGST + CGST + SGST + Cess) in the Conso','',f2(itc),'Info - '+f2(itc).toLocaleString('en-IN',{minimumFractionDigits:2}));
+  return {R,bad,itc};}
+let G8={};
+function monthRows8(out){const m={};out.forEach(r=>{if(r[0]!=='')m[r[0]]=1;});return Object.keys(m).sort((a,b)=>per8(a)-per8(b)||a.localeCompare(b));}
+function wb8(g,o){
+  const c=conso8(g,o),k=chk8(g,o,c),out=c.out,n=out.length,L=6+Math.max(n,1),sub=q=>({f:'SUBTOTAL(9,'+colL(q)+'7:'+colL(q)+L+')'});
+  const sheets=[],ref=q=>"'8A Conso'!$"+colL(q)+'$7:$'+colL(q)+'$'+L;
+  const hd=['Month (GSTR-2B period)',...H8,'Amendment status','Section'],srow=['Subtotal (follows filter)',...hd.slice(1).map((x,i)=>NS8.has(i+1)?sub(i+1):'')];
+  const rows=[['GSTR-9 Table 8A conso - '+g.gstin+(g.legal?' - '+g.legal:'')],['FY '+g.fy+' - source file '+g.file.name+(g.gen?' (generated '+g.gen+')':'')],
+    ['One flat register: B2B, credit/debit notes, ECO, then amendments. Month = the "GSTR-2B Period" of the document. "ITC considered" columns = "Actual ITC amount considered for 8A Summary computation".'],
+    ['Credit notes are '+(o.neg?'shown negative (value, taxable value, taxes and ITC).':'shown as in the portal file (positive).')+' Amendments: '+({rep:'replace the original row when it is in the file, otherwise the revised row is added. The ITC considered on a replaced row is the figure shown on the amended row (the original row\'s ITC no longer counts).',app:'added as separate rows; originals kept. The ITC considered on an amendment row is the change over the original, so the column total matches the portal.',off:'left out.'})[o.am]],
+    srow,hd,...out];
+  sheets.push({name:'8A Conso',rows,wd:[11,17,30,20,12,13,14,14,10,14,13,13,13,10,12,12,12,15,15,15,15,36,46,24],freeze:6,filter:[5,rows.length-1],heights:{5:44},
+    style:(r,q,v)=>r===5?3:r===4?(NS8.has(q)?6:5):r<5?5:(typeof v==='number'&&NS8.has(q)?6:5)});
+  if(c.log.length)sheets.push({name:'Amendment replacements',rows:[['Conso row','Supplier GSTIN','Original number','Month','Field','Old value (original)','New value (amended)'],...c.log],wd:[11,18,22,10,40,22,22],freeze:1,filter:[0,c.log.length],heights:{0:30},style:(r,q,v)=>r===0?3:(typeof v==='number'&&q>=5?6:5)});
+  // month-wise and section-wise summary - live formulas on the Conso tab, so they follow any edits
+  const ms=monthRows8(out),HS=['Rows','Taxable value (\u20B9)','ITC considered - IGST','ITC considered - CGST','ITC considered - SGST','ITC considered - Cess','Total ITC considered','Tax on rows with ITC = No'];
+  const cnt=(col,r)=>({f:'COUNTIFS('+ref(col)+',$A'+r+')'}),sm=(col,q,r)=>({f:'SUMIFS('+ref(q)+','+ref(col)+',$A'+r+')'}),
+    nt=(col,r)=>({f:TAXC.map(q=>'SUMIFS('+ref(q)+','+ref(col)+',$A'+r+','+ref(16)+',"No")').join('+')}),
+    line=(col,r,lab)=>[lab,cnt(col,r),sm(col,9,r),...ITCC.map(q=>sm(col,q,r)),{f:'SUM(D'+r+':G'+r+')'},nt(col,r)],
+    tot=(r1,r2)=>['Total',...['B','C','D','E','F','G','H','I'].map(x=>({f:r2>=r1?'SUM('+x+r1+':'+x+r2+')':'0'}))];
+  const sr=[['GSTR-9 Table 8A - ITC considered, month-wise (GSTR-2B period)'],['GSTIN '+g.gstin+' - FY '+g.fy],[''],['GSTR-2B period',...HS]];
+  ms.forEach((m,i)=>sr.push(line(0,5+i,m)));
+  sr.push(tot(5,4+ms.length));
+  const hr2=sr.length+1,sec=T8.map(x=>x[2]);sr.push([''],['Section-wise',...HS]);
+  const s0=sr.length+1;sec.forEach((x,i)=>sr.push(line(23,s0+i,x)));
+  sr.push(tot(s0,s0+sec.length-1),[''],['Both tables read the "8A Conso" tab. A row replaced by an amendment stays in the month of the original document.']);
+  sheets.push({name:'Month summary',rows:sr,wd:[24,10,18,18,18,18,16,18,20],freeze:4,heights:{3:34,[hr2]:34},style:(r,q,v)=>(r===3||r===hr2)?3:(q>=2&&r>3&&r!==hr2?6:5)});
+  const cr=[['Check','Detail','Source','Output','Result'],['File','Source file '+g.file.name+' - GSTIN '+g.gstin+' - FY '+g.fy+' - '+g.legal,'','',[...g.file.issues,...g.file.warn].join('; ')||'OK'],...k.R];
+  sheets.push({name:'Checks',rows:cr,wd:[34,70,12,12,120],freeze:1,filter:[0,cr.length-1],heights:{0:30},style:(r,q,v)=>r===0?3:(q===4&&!/^(OK|Info)/.test(v)?7:5)});
+  return {sheets,c,k};}
+function render8(){
+  const o=opt8(),ks=Object.keys(G8);let files=0,rowsT=0,bad=0,warn=0;
+  const tr=[];ks.forEach(key=>{const g=G8[key];g.all.forEach(f=>{files++;const use=f===g.file,c=use?conso8(g,o):null,k=use?chk8(g,o,c):null;
+    if(use)rowsT+=c.out.length;const iss=[...f.issues,...f.warn,...(k?k.R.filter(r=>!/^(OK|Info)/.test(r[4])).map(r=>r[0]+': '+r[4]):[])];
+    if(f.issues.length||(k&&k.bad))bad++;else if(iss.length)warn++;
+    const cl=f.issues.length||(k&&k.bad)?'er':(iss.length?'wn':'ok'),cn=n=>f.cnt[n]||0;
+    tr.push(`<tr><td>${esc(f.name)}</td><td>${esc(f.gstin)}</td><td>${esc(f.fy)}</td><td class="n">${cn('B2B')}</td><td class="n">${cn('B2B-CDNR')}</td><td class="n">${cn('ECO')}</td><td class="n">${cn('B2BA')+cn('B2B-CDNRA')+cn('ECOA')}</td><td class="n">${k?fmt(k.itc):''}</td><td class="${cl}">${esc(iss.join('; ')||'OK')}</td></tr>`);});});
+  $('stats8').innerHTML=`<div><b>${files}</b><span>files read</span></div><div><b>${ks.length}</b><span>GSTIN / FY</span></div><div><b>${rowsT}</b><span>rows in the Conso</span></div><div><b class="${warn?'wn':''}">${warn}</b><span>with a note</span></div><div><b class="${bad?'er':'ok'}">${bad}</b><span>need checking</span></div>`;
+  $('tb8').innerHTML='<tr>'+['File','GSTIN','FY','B2B','B2B-CDNR','ECO','Amendment rows','ITC considered (8A total)','Checks'].map(x=>`<th>${x}</th>`).join('')+'</tr>'+tr.join('');
+  $('dl8').innerHTML=ks.map(key=>`<button class="pri" data-g="${key}">Download Excel - ${esc(G8[key].gstin)} (FY ${esc(G8[key].fy)})</button>`).join('');$('res8').classList.remove('hide');}
+async function run8(files){
+  const T=$('ptxt8');T.textContent='Reading files\u2026';const items=[];
+  try{for(const f of files){
+    if(/\.zip$/i.test(f.name)){const z=await JSZip.loadAsync(f);for(const n of Object.keys(z.files)){const e=z.files[n],b=n.split('/').pop();if(!e.dir&&/\.xlsx$/i.test(n)&&!/__MACOSX/.test(n)&&!/^~\$/.test(b))items.push({name:b,buf:await e.async('arraybuffer')});}}
+    else if(/\.xlsx$/i.test(f.name))items.push({name:f.name,buf:await f.arrayBuffer()});}}catch(e){T.textContent='Could not open: '+e.message;return;}
+  if(!items.length){T.textContent='No .xlsx files found.';return;}
+  const rs=[];for(let i=0;i<items.length;i++){T.textContent='Reading file '+(i+1)+' of '+items.length;await new Promise(r=>setTimeout(r));const r=parse8(items[i].buf,items[i].name);r.name=items[i].name;rs.push(r);}
+  G8={};
+  rs.forEach(r=>{const k=(r.gstin||'?')+'|'+(r.fy||'?');const g=G8[k]=G8[k]||{gstin:r.gstin,fy:r.fy,all:[]};g.all.push(r);});
+  for(const k in G8){const g=G8[k];g.all.sort((a,b)=>b.genT-a.genT);
+    const use=g.all.find(f=>!f.issues.length)||g.all[0];g.file=use;g.legal=use.legal;g.gen=use.gen;g.rows=use.rows;g.file.name=use.name;
+    g.all.forEach(f=>{if(f!==use&&!f.issues.length)f.issues.push('Ignored - a newer 8A file for the same GSTIN and FY was also dropped in ('+use.name+')');});}
+  T.textContent='Done';render8();$('msg8').textContent='';}
+$('dl8').onclick=async e=>{const k=e.target.dataset&&e.target.dataset.g;if(!k)return;try{$('msg8').textContent='Building workbook\u2026';const g=G8[k],r=wb8(g,opt8());if(!r.c.out.length){$('msg8').textContent='Nothing to export - no rows were read from this file. See the Checks column in the table above.';return;}
+  await save8('GSTR_8A_Conso_'+g.gstin+'_FY'+g.fy+'.xlsx',await buildXlsx(r.sheets));}catch(x){$('msg8').textContent='Error: '+x.message;}};
+async function save8(name,data){const m=$('msg8');let d=null;try{d=typeof claude!=='undefined'?await claude.use('downloads'):null;}catch(e){}
+  try{if(d)await d.save({filename:name,data});else dl(name,data);m.textContent='Saved '+name;}catch(e){m.textContent=e&&e.code==='declined'?'Download cancelled.':'Could not save: '+(e&&e.message||e);}}
+['c8am','c8neg','c8eco'].forEach(i=>$(i).onchange=()=>{if(Object.keys(G8).length)render8();});
+$('g8').onchange=e=>run8([...e.target.files]);
+const d8=$('drop8');regPaste(d8,files=>run8(files));['dragenter','dragover'].forEach(e=>d8.addEventListener(e,x=>{x.preventDefault();d8.classList.add('over');}));
+['dragleave','drop'].forEach(e=>d8.addEventListener(e,x=>{x.preventDefault();d8.classList.remove('over');}));d8.addEventListener('drop',e=>run8([...e.dataTransfer.files]));
 
 return {};
 })();
@@ -1260,12 +1467,15 @@ function setMode0(k){
   $('m2b').classList.remove('sel');$('p2b').classList.add('hide');setModePdf(k);}
 function setMode(k){
   $('p5').classList.add('hide');$('m5').classList.remove('sel');$('p9').classList.add('hide');$('m9').classList.remove('sel');
+  $('p8a').classList.add('hide');$('m8a').classList.remove('sel');
+  if(k==='a8'){MODE='a8';recs=[];['m1','m3','m4','m2b','m5','m9'].forEach(x=>$(x).classList.remove('sel'));$('m8a').classList.add('sel');
+    $('step2').classList.add('hide');$('p2b').classList.add('hide');$('p8a').classList.remove('hide');$('foot').textContent='';return;}
   if(k==='n9'){MODE='n9';recs=[];['m1','m3','m4','m2b','m5'].forEach(x=>$(x).classList.remove('sel'));$('m9').classList.add('sel');
     $('step2').classList.add('hide');$('p2b').classList.add('hide');$('p9').classList.remove('hide');$('foot').textContent='';return;}
   if(k==='so'){MODE='so';recs=[];['m1','m3','m4','m2b'].forEach(x=>$(x).classList.remove('sel'));$('m5').classList.add('sel');
     $('step2').classList.add('hide');$('p2b').classList.add('hide');$('p5').classList.remove('hide');$('foot').textContent='';return;}
   setMode0(k);}
-$('m5').onclick=()=>setMode('so');$('m9').onclick=()=>setMode('n9');$('m1').onclick=()=>setMode('g1');$('m4').onclick=()=>setMode('rc');$('m3').onclick=()=>setMode('g3');$('m2b').onclick=()=>setMode('b2');
+$('m5').onclick=()=>setMode('so');$('m9').onclick=()=>setMode('n9');$('m1').onclick=()=>setMode('g1');$('m4').onclick=()=>setMode('rc');$('m3').onclick=()=>setMode('g3');$('m2b').onclick=()=>setMode('b2');$('m8a').onclick=()=>setMode('a8');
 async function run(files,box){
   const key=MODE,M=MODES[key];if(!M)return;
   $('prog').classList.remove('hide');$('res').classList.add('hide');$('ptxt').textContent='Reading files…';$('bar').firstChild.style.width='0%';
@@ -1586,8 +1796,8 @@ function g1Model(P){
     for(i=i+1;i<rs.length&&/^-/.test(rs[i].label);i++)if(re.test(rs[i].label))return v5(rs[i].vals);return Z(5);};
   const m={},add=(a,b)=>sumArr(a,b);
   m.b2b=tot('4A');m.b2c=add(tot('5'),tot('7'));
-  /* credit notes on exports without payment (CDNUR EXPWOP) are GSTR-9 table 5H, so they are shown gross on the same row as 5H
-     (Exempt Supply row); every other credit note stays on the Credit Notes row (GSTR-9 4I) */
+  /* credit/debit notes on exports without payment (CDNUR EXPWOP) are GSTR-9 table 5H/5I, so they are shown on their own row
+     (Unregistered Credit Notes / Debit Notes) beside the export and exempt rows; every other credit note stays on the Credit Notes row (GSTR-9 4I) */
   const cdnuExp=cdnuSub(/EXPWOP/);
   m.cn=add(cdn('9B-R'),add(cdn('9B-U'),cdnuExp.map(v=>-v)));
   const adv=k=>{const rs=rowsOf(k);const a=rs.find(r=>/^GSTR-1$/.test(r.label))||rs.find(r=>/^Total|^GSTR-1\b/.test(r.label)&&!/1A/.test(r.label));const b=rs.find(r=>/^GSTR-1A$/.test(r.label));return [a?v5(a.vals):Z(5),b?v5(b.vals):Z(5)];};
@@ -1603,7 +1813,7 @@ function g1Model(P){
   m.deemed=tot('6C');
   m.expwp=sub('6A',/EXPWP/);m.expwop=sub('6A',/EXPWOP/);m.sezwp=sub('6B',/SEZWP/);m.sezwop=sub('6B',/SEZWOP/);
   const t8=sub('8',/Nil/),e8=sub('8',/Exempted/),n8=sub('8',/Non-GST/);
-  m.exempt=add(add(t8,e8),cdnuExp);m.nongst=n8;m.orcm=tot('4B');
+  m.exempt=add(t8,e8);m.cdnur=cdnuExp;m.nongst=n8;m.orcm=tot('4B');
   m._found=['4A','5','6A','8','9B-R'].filter(k=>!has(k));
   return m;
 }
@@ -1711,7 +1921,7 @@ function g9Model(P){
   const v=k=>D[k]?D[k][0]:0;
   if(D['5A']||D['5F']){
     m.expwop=[v('5A'),0,0,0,0];m.sezwop=[v('5B'),0,0,0,0];m.orcm=[v('5C'),0,0,0,0];
-    m.exempt=[r2(v('5D')+v('5E')-v('5H')+v('5I')+v('5J')-v('5K')),0,0,0,0];m.nongst=[v('5F'),0,0,0,0];}
+    m.exempt=[r2(v('5D')+v('5E')+v('5J')-v('5K')),0,0,0,0];m.cdnur=[r2(-v('5H')+v('5I')),0,0,0,0];m.nongst=[v('5F'),0,0,0,0];}
   const sixSum=ks=>ks.filter(k=>D[k]).length?ks.reduce((a,k)=>D[k]?A(a,D[k]):a,Z(4)):null;
   m.itcA=o6(D['6A']);m.itcImp=o6(sixSum(['6E','6F']));m.itcRcm=o6(sixSum(['6C','6D']));m.itcIsd=o6(D['6G']);m.itcOth=o6(D['6B']);
   const H=['A','B','C','D'];
@@ -1731,7 +1941,7 @@ const R0=8;
 const ROWS=[
  ['b2b','B2B'],['b2c','B2C'],['cn','Credit  Notes'],['dn','Debit Note'],['advr','Advances Received'],['adva','Advances Adjusted'],['advr1a','Advances Received GSTR1A'],['adva1a','Advances Adjusted GSTR1A'],
  ['amdp','supplies/tax declared through amendments'],['amdn','Supplies/tax reduced through amendments'],['deemed','Deemed Export'],[null,''],['total','Total'],[null,''],
- ['expwp','Export with payment'],['expwop','Export without payment'],[null,''],['sezwp','SEZWP'],['sezwop','SEZWOP'],['exempt','Exempt Supply'],['nongst','Non-GST Supply'],['orcm','RCM on outward supplies (4B / 5C)'],
+ ['expwp','Export with payment'],['expwop','Export without payment'],[null,''],['sezwp','SEZWP'],['sezwop','SEZWOP'],['exempt','Exempt Supply'],['nongst','Non-GST Supply'],['cdnur','Unregistered Credit Notes / Debit Notes'],['orcm','RCM on outward supplies (4B / 5C)'],
  ['rcm','RCM'],[null,''],['inexempt','Exempt Supply'],['innongst','Non-GST Supply'],[null,''],
  ['itch','ITC'],['itcA','Available'],['itcImp','Import'],['itcRcm','RCM'],['itcIsd','ISD'],['itcOth','All other ITC'],['rev1','Reversed 4B(1)'],['rev2','Others'],['net','Net ITC Available'],['oth','Other Details'],['d1','4D(1)'],['d2','Ineligible ITC under section 16(4) & ITC restricted due to PoS rules'],
  ['pith','Paid through ITC'],['utI','IGST utilised set off'],['utC','CGST utilised set off'],['utS','SGST utilised set off'],['utX','Cess utilised set off'],['cash','Paid through Cash'],['liab','Net Liability'],['rcmcash','RCM (inward supplies)'],['int','Interest (if any)'],['late','Late Fee']];
@@ -1765,10 +1975,10 @@ function buildSheet(m3,m1,m9,meta){
   for(let k=0;k<5;k++){
     /* 9 vs 3B (9 minus 3B) */
     F('b2b',CS,k,`SUM(${rg(C9,k,'b2b','deemed')})-SUM(${rg(C3,k,'b2b','deemed')})`);
-    F('expwp',CS,k,`SUM(${rg(C9,k,'expwp','nongst')})-SUM(${rg(C3,k,'expwp','nongst')})`);
+    F('expwp',CS,k,`SUM(${rg(C9,k,'expwp','cdnur')})-SUM(${rg(C3,k,'expwp','cdnur')})`);
     F('rcm',CS,k,`${ref(C9,k,'rcm')}-${ref(C3,k,'rcm')}`);
     /* 9 vs 1 (9 minus 1) */
-    for(const key of ['b2b','b2c','amdp','amdn','deemed','expwp','expwop','sezwp','sezwop','exempt','nongst','orcm'])F(key,CX,k,`${ref(C9,k,key)}-${ref(C1,k,key)}`);
+    for(const key of ['b2b','b2c','amdp','amdn','deemed','expwp','expwop','sezwp','sezwop','exempt','nongst','cdnur','orcm'])F(key,CX,k,`${ref(C9,k,key)}-${ref(C1,k,key)}`);
     F('cn',CX,k,`SUM(${rg(C9,k,'cn','dn')})-SUM(${rg(C1,k,'cn','dn')})`);
     F('advr',CX,k,`${ref(C9,k,'advr')}-SUM(${rg(C1,k,'advr','adva1a')})`);
   }
@@ -1847,7 +2057,7 @@ async function buildXlsx(g,meta){
   let rows2=p2.rows.replace(/<c r="(B\d+)" s="(\d+)" t="s"><v>(\d+)<\/v><\/c>/g,(m,a,s,i)=>{const t=p2.sst[+i];if(!map.has(t)){map.set(t,all.length);all.push(t);}return `<c r="${a}" s="${s}" t="s"><v>${map.get(t)}</v></c>`;});
   const E='<sheetData></sheetData>';
   let s1=await rd('xl/worksheets/sheet1.xml'),s2=await rd('xl/worksheets/sheet2.xml');
-  s1=s1.replace(E,'<sheetData>'+p1.rows+'</sheetData>').replace(/<dimension ref="[^"]*"\/>/,`<dimension ref="B1:AB${LAST}"/>`);
+  s1=s1.replace(E,'<sheetData>'+p1.rows+'</sheetData>').replace(/<dimension ref="[^"]*"\/>/,`<dimension ref="B1:AB${LAST}"/>`).replace(/sqref="S8:AB\d+"/,`sqref="S8:AB${LAST}"`);
   s2=s2.replace(E,'<sheetData>'+rows2+'</sheetData>').replace(/<dimension ref="[^"]*"\/>/,`<dimension ref="B1:B${lastNote}"/>`);
   z.file('xl/worksheets/sheet1.xml',s1);z.file('xl/worksheets/sheet2.xml',s2);
   z.file('xl/sharedStrings.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="'+(p1.refs+p2.refs)+'" uniqueCount="'+all.length+'">'+all.map(t=>`<si><t xml:space="preserve">${X(t)}</t></si>`).join('')+'</sst>');
@@ -1923,7 +2133,7 @@ function notesFor(g){
   n.push('# How to read the sheet');
   n.push('Differences are GSTR-9 minus the other return (a positive figure means GSTR-9 is higher). Differences of more than ₹1 are shaded red.');
   n.push('9 vs 3B: GSTR-3B table 3.1(a) is one line, so it is compared with the total of rows B2B to Deemed Export in GSTR-9 (shown on the B2B row). Table 3.1(b), (c) and (e) are compared with the total of the Export, SEZ, Exempt and Non-GST rows (shown on the Export with payment row), because GSTR-3B 3.1(b) is net of export credit notes while GSTR-9 shows exports gross (5A) and the credit notes separately (5H).');
-  n.push('Credit Notes / Debit Note: GSTR-1 reports credit and debit notes only as a net figure, so the net is shown on the Credit Notes row. In the 9 vs 1 column the net of both rows is compared. Credit notes on exports without payment (GSTR-1 CDNUR type EXPWOP, GSTR-9 table 5H) are not on these rows: they are shown gross on the Exempt Supply row on both sides, and Export without payment stays gross.');
+  n.push('Credit Notes / Debit Note: GSTR-1 reports credit and debit notes only as a net figure, so the net is shown on the Credit Notes row. In the 9 vs 1 column the net of both rows is compared. Credit notes on exports without payment (GSTR-1 CDNUR type EXPWOP, GSTR-9 table 5H) are not on these rows: they are not netted into the Exempt Supply or Export rows. They are shown on their own row, Unregistered Credit Notes / Debit Notes (GSTR-1 CDNUR EXPWOP net figure; GSTR-9 5I minus 5H), and the 9 vs 1 variance on that row is GSTR-9 minus GSTR-1. In 9 vs 3B the row is part of the Export / SEZ / Exempt / Non-GST block total, so the credit notes net against GSTR-3B 3.1(b), which is already net of them.');
   n.push('Advances: GSTR-9 4F (advances on which tax is paid but invoice is not issued) is compared with the sum of the four GSTR-1 advance rows.');
   n.push('Amendments: all net differential lines of GSTR-1 tables 9A, 9C, 10, 11A and 11B are added; a positive total goes to "declared" and a negative total to "reduced". GSTR-9 uses 4K and 4L.');
   n.push('GSTR-3B table 3.1(b) is placed on Export with payment if it carries IGST, otherwise on Export without payment; the zero-rated comparison is made on the block total so this does not affect the difference.');
