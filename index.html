@@ -153,6 +153,14 @@ input.t{font:inherit;padding:8px 10px;border:1px solid var(--ln);border-radius:8
 })();
 </script>
 <script>
+/* QRMP / quarterly returns: a quarterly period such as "Oct-Dec" is stored as its quarter-end month (December) so every monthly routine keeps working; h.qtr keeps the real label */
+var QRT={'jan-mar':['March','Jan-Mar',1,3],'apr-jun':['June','Apr-Jun',4,6],'jul-sep':['September','Jul-Sep',7,9],'oct-dec':['December','Oct-Dec',10,12]};
+var QMN=['January','February','March','April','May','June','July','August','September','October','November','December'];
+function qParse(raw){if(!raw)return null;var m=String(raw).trim().toLowerCase().match(/^([a-z]{3})[a-z]*\s*(?:-|\u2013|to)\s*([a-z]{3})[a-z]*$/);if(!m)return null;var q=QRT[m[1]+'-'+m[2]];return q?{end:q[0],lab:q[1],m1:q[2],m2:q[3]}:null;}
+function qPL(h){return (h&&(h.qtr||h.period))||'';}
+function qCover(period,qtr){var q=qtr&&qParse(qtr);if(q){var o=[];for(var i=q.m1;i<=q.m2;i++)o.push(QMN[i-1]);return o;}return period?[period]:[];}
+</script>
+<script>
 /* ===== Reader for Microsoft Print-to-PDF files (text stored as shapes) ===== */
 /* ===== Glyph reader: reads "Microsoft: Print To PDF" pages, where text is stored as vector outlines (no text layer) ===== */
 const GLY=(()=>{
@@ -421,12 +429,13 @@ function parseReturn(pages){
     if(!started){
       let m;
       if(m=text.match(/^Financial year\s+(\d{4}-\d{2})/))H.fy=m[1];
-      else if(m=text.match(/^Tax period\s+([A-Za-z]+)/))H.period=m[1];
+      else if(m=text.match(/^Tax period\s+([A-Za-z]+(?:\s*[-\u2013]\s*[A-Za-z]+)?)/)){const q=qParse(m[1]);if(q){H.period=q.end;H.qtr=q.lab;}else H.period=m[1];}
       else if(m=text.match(/GSTIN\s+(\w{15})\b/))H.gstin=m[1];
       else if(m=text.match(/\(a\) Legal name of the registered person\s+(.+)$/))H.name=m[1].trim();
       else if(m=text.match(/\(b\) Trade name if any\s+(.+)$/))H.trade=m[1].trim();
       else if(m=text.match(/\(c\) ARN\s+(\w+)/))H.arn=m[1];
       else if(m=text.match(/\(d\) ARN date\s+([\d\/]+)/))H.arnDate=m[1];
+      else if(m=text.match(/\(e\)\s+Nil Filed\s+(Yes|No)\b/i))H.nil=/^yes$/i.test(m[1]);
     }
     const o=classify(r);
     const hm=text.match(HEAD);
@@ -443,6 +452,8 @@ function parseReturn(pages){
       else{last=null;pend=pend||{label:[],records:null,doctype:[]};pend.label.push(...o.label);pend.doctype.push(...o.doctype);}}
   }
   flush();
+  /* a nil return has no tables at all: the header says "Nil Filed - Yes". Record it as a return with a nil Total Liability so it is counted, not rejected */
+  if(!done&&H.nil&&!R.rows.length){R.rows.push({table:'TL',section:'Total Liability',label:'Total Liability (nil return)',records:null,doctype:'',vals:[0,0,0,0,0]});R.nilReturn=true;done=true;R.warn.push('Nil return - no outward supplies reported; shown as nil');}
   if(!done)R.issues.push('"Total Liability" line at the end of the return was not found');
   return R;
 }
@@ -481,7 +492,7 @@ function buildSheets(recs){
   const base=p=>(p||'').split(/[\\/]/).pop(),chk=r=>[...r.R.issues,...r.R.warn].join('; ')||'OK',tl=r=>r.R.rows.find(x=>x.table==='TL');
   const sheets=[];
   sheets.push({name:'Summary',w:[34,10,17,30,9,7,11,17,12,20,16,16,16,12,70],rows:[['File','Status','GSTIN','Legal name','Financial year','Year','Period','ARN','ARN date','Total Liability - Value','Integrated tax','Central tax','State/UT tax','Cess','Checks'],
-    ...recs.map(r=>{const h=r.R.h,t=tl(r),v=t?t.vals:[null,null,null,null,null];return [base(r.path),r.status,h.gstin,h.name,h.fy,h.year,h.period,h.arn,h.arnDate,v[0],v[1],v[2],v[3],v[4],chk(r)];})]});
+    ...recs.map(r=>{const h=r.R.h,t=tl(r),v=t?t.vals:[null,null,null,null,null];return [base(r.path),r.status,h.gstin,h.name,h.fy,h.year,qPL(h),h.arn,h.arnDate,v[0],v[1],v[2],v[3],v[4],chk(r)];})]});
   sheets.push(consolidatedSheet(recs));
   const keys=[];recs.forEach(r=>r.R.rows.forEach(x=>{if(x.table!=='TL'&&!keys.includes(x.table))keys.push(x.table);}));
   keys.sort((a,b)=>{const ia=ORDER.indexOf(a),ib=ORDER.indexOf(b);return (ia<0?999:ia)-(ib<0?999:ib);});
@@ -489,7 +500,7 @@ function buildSheets(recs){
   keys.forEach(k=>{
     let n=(SHEETN[k]||('T'+k)).replace(/[\\\/\?\*\[\]:]/g,'-').slice(0,31),c=2,b=n;while(used.has(n.toLowerCase()))n=b.slice(0,28)+'~'+(c++);used.add(n.toLowerCase());
     const rows=[['GSTIN','Legal name','Financial year','Year','Period','Status','Return check','Section','Line item','No. of records','Document type','Value','Integrated tax','Central tax','State/UT tax','Cess']];
-    recs.forEach(r=>r.R.rows.filter(x=>x.table===k).forEach(x=>{const h=r.R.h;rows.push([h.gstin,h.name,h.fy,h.year,h.period,r.status,r.R.issues.length?'CHECK':'OK',x.section,x.label,x.records,x.doctype||null,...x.vals]);}));
+    recs.forEach(r=>r.R.rows.filter(x=>x.table===k).forEach(x=>{const h=r.R.h;rows.push([h.gstin,h.name,h.fy,h.year,qPL(h),r.status,r.R.issues.length?'CHECK':'OK',x.section,x.label,x.records,x.doctype||null,...x.vals]);}));
     sheets.push({name:n,w:[17,28,10,7,11,9,10,60,60,10,16,18,16,16,16,12],rows});
   });
   return sheets;
@@ -649,7 +660,7 @@ function parseReturn(pages){
   const g=(re)=>{for(const r of rows){const m=r.text.match(re);if(m)return (m[1]||'').trim();}return '';};
   R.h.gstin=g(/^(?:1\.\s*)?GSTIN(?:\s+of the supplier)?\s+([0-9A-Z]{15})\b/); R.h.name=g(/^2\(a\)\.[^]*?registered person\s*(.*)/);
   R.h.trade=g(/^2\(b\)\.[^]*?if any\s*(.*)/); R.h.arn=g(/^2\(c\)\.\s*ARN\s*(\S*)/);
-  R.h.arnDate=g(/^2\(d\)\.\s*Date of ARN\s*(\S*)/); R.h.year=g(/^Year\s+(\S+)/); R.h.period=g(/^Period\s+(\S+)/);
+  R.h.arnDate=g(/^2\(d\)\.\s*Date of ARN\s*(\S*)/); R.h.year=g(/^Year\s+(\S+)/); R.h.period=g(/^Period\s+(\S+(?:\s*[-\u2013]\s*[A-Za-z]+)?)/);{const q=qParse(R.h.period);if(q){R.h.period=q.end;R.h.qtr=q.lab;}}
   const idx=re=>rows.findIndex(r=>re.test(r.text));
   R.h.final=pages.some(p=>p.some(i=>/^(FINAL|FINA|INAL|FIN|NAL)$/.test(i.s.trim())));
   if(!R.h.period&&rows.some(r=>/System Generated Summary/i.test(r.text))){R.summaryDoc=true;R.h.year=g(/^Financial Year\s+(\S+)/);R.issues.push("This PDF is the system-generated summary for the whole financial year (all months added together), not one month's GSTR-3B. Download the return for the month in the file name from the portal and use that file instead");return R;}
@@ -711,17 +722,17 @@ function crossCheck(R,path){
 /*CORE3_END*/
 function sumRow(r){const R=r.R,h=R.h,a=R.t31[0]||[],c=R.t4.C||[],cash=[0,1,2,3].map(k=>R.t61.filter(x=>x.head===HEADS[k]).reduce((s,x)=>s+(x.v[7]||0),0));
   const sm=i=>R.t61.reduce((s,x)=>s+(x.v[i]||0),0);const chk=[...R.issues,...R.warn].join('; ')||'OK';
-  return [base(r.path),r.status,h.gstin,h.name,h.year,h.period,h.arn,h.arnDate,a[0],a[1],a[2],a[3],a[4],c[0],c[1],c[2],c[3],cash[0],cash[1],cash[2],cash[3],sm(8),sm(9),chk];}
+  return [base(r.path),r.status,h.gstin,h.name,h.year,qPL(h),h.arn,h.arnDate,a[0],a[1],a[2],a[3],a[4],c[0],c[1],c[2],c[3],cash[0],cash[1],cash[2],cash[3],sm(8),sm(9),chk];}
 const SH=['File','Status','GSTIN','Legal name','Year','Period','ARN','ARN date','3.1(a) Taxable value','3.1(a) IGST','3.1(a) CGST','3.1(a) SGST/UTGST','3.1(a) Cess','Net ITC IGST','Net ITC CGST','Net ITC SGST/UTGST','Net ITC Cess','Cash paid IGST','Cash paid CGST','Cash paid SGST/UTGST','Cash paid Cess','Interest paid (cash)','Late fee (cash)','Checks'];
 async function workbook(){
   const wb=XLSX.utils.book_new(),add=(n,rows,w)=>{const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=w.map(x=>({wch:x}));ws['!freeze']={ySplit:1};numFmtWs(ws);XLSX.utils.book_append_sheet(wb,ws,n);};
-  const hd=r=>[r.R.h.gstin,r.R.h.year,r.R.h.period,r.status];
+  const hd=r=>[r.R.h.gstin,r.R.h.year,qPL(r.R.h),r.status];
   add('Summary',[SH,...recs.map(sumRow)],[34,10,17,22,9,11,17,12,...Array(15).fill(18),60]);
   const A=[['GSTIN','Year','Period','Status','Description','Total taxable value','Integrated tax','Central tax','State/UT tax','Cess']],B=[['GSTIN','Year','Period','Status','Description','Integrated tax','Central tax','State/UT tax','Cess']],C=[['GSTIN','Year','Period','Status','Section','Tax head','Tax payable','Adjustment of negative liability','Net tax payable','Paid via ITC - Integrated','Paid via ITC - Central','Paid via ITC - State/UT','Paid via ITC - Cess','Paid in cash','Interest paid in cash','Late fee paid in cash']];
   recs.forEach(r=>{r.R.t31.forEach((v,i)=>A.push([...hd(r),L31[i],...v]));if(r.R.t31.length){const tot=[0,1,2,3,4].map(c=>Math.round([0,1,2,4].reduce((s,i)=>s+((r.R.t31[i]||[])[c]||0),0)*100)/100);A.push([...hd(r),'Total of 3.1 (a)+(b)+(c)+(e) - excluding (d) inward supplies',...tot]);}(r.R.old?['A','B','C','D']:Object.keys(L4)).forEach(k=>{if(r.R.t4[k])B.push([...hd(r),(r.R.old?L4OLD:(r.R.lab4||L4))[k],...r.R.t4[k]]);});
     r.R.t61.forEach(x=>C.push([...hd(r),x.sec==='A'?'(A) Other than reverse charge':'(B) Reverse charge & 9(5)',x.head,...x.v]));});
   add('3.1 Outward',A,[17,9,11,10,70,18,16,16,16,12]);add('4 ITC',B,[17,9,11,10,64,16,16,16,12]);add('6.1 Payment',C,[17,9,11,10,30,16,16,16,16,16,16,16,16,16,16,16]);
-  add('Checks',[['File','Status','GSTIN','Period','Result'],...recs.map(r=>[base(r.path),r.status,r.R.h.gstin,r.R.h.period,[...r.R.issues,...r.R.warn].join('; ')||'OK'])],[34,16,17,11,80]);
+  add('Checks',[['File','Status','GSTIN','Period','Result'],...recs.map(r=>[base(r.path),r.status,r.R.h.gstin,qPL(r.R.h),[...r.R.issues,...r.R.warn].join('; ')||'OK'])],[34,16,17,11,80]);
   const sty={};['Summary','3.1 Outward','4 ITC','6.1 Payment','Checks'].forEach(n=>flatStyle(wb.Sheets[n],n,sty));macroSheets(wb,sty);
   return await styleBook(XLSX.write(wb,{type:'array',bookType:'xlsx'}),wb.SheetNames,sty);}
 /* Same look for the line-by-line sheets: header row, bordered cells, numbers with 2 decimals, shaded total rows.
@@ -805,13 +816,13 @@ function macroSheets(wb,sty){
   /* Outward Supplies Table */
   const O=B(),OC=6;
   let r0=O.put(['Outward Supplies Table'],['title'],24);O.span(r0,0,OC-1,'title');
-  r0=O.put(['Month-wise Table 3.1: (a) + (b) + (c) + (e). Excludes (d) inward supplies liable to reverse charge.'],['note']);O.span(r0,0,OC-1,'note');
+  r0=O.put(['Month-wise Table 3.1: (a) + (b) + (c) + (e). Excludes (d) inward supplies liable to reverse charge. A quarterly (QRMP) return is shown against the last month of its quarter.'],['note']);O.span(r0,0,OC-1,'note');
   O.put([],[]);
   groups.forEach(g=>{
     r0=O.put(['GSTIN: '+(g.gstin||'-')+'     |     Financial year: '+(g.year||'-')],['meta'],20);O.span(r0,0,OC-1,'meta');
     O.put(['Month','Total Taxable Value','Integrated Tax','Central Tax','State Tax','Cess'],Array(OC).fill('hdr'),30);
     const tot=Array(5).fill(0);
-    FYO.forEach(m=>{const r=g.byM[m],t=r?r.R.t31:[];const v=r&&t.length?sum([0,1,2,4].map(i=>t[i]),5):[0,0,0,0,0];v.forEach((x,i)=>tot[i]+=x);O.put([m,...v],['mon',...Array(5).fill('num')]);});
+    FYO.forEach(m=>{const r=g.byM[m],t=r?r.R.t31:[];const v=r&&t.length?sum([0,1,2,4].map(i=>t[i]),5):[0,0,0,0,0];v.forEach((x,i)=>tot[i]+=x);O.put([m+(r&&r.R.h.qtr?' ('+r.R.h.qtr+' quarter)':''),...v],['mon',...Array(5).fill('num')]);});
     O.put(['Grand Total',...tot.map(rd)],['totl',...Array(5).fill('totn')]);O.put([],[]);O.put([],[]);
   });
   if(!groups.length)O.put(['No monthly returns found.'],[]);
@@ -905,7 +916,7 @@ async function save2(name,data){const m=$('msg2');let d=null;try{d=typeof claude
   try{if(d)await d.save({filename:name,data});else dl(name,data);m.textContent='Saved '+name;}catch(e){m.textContent=e&&e.code==='declined'?'Download cancelled.':'Could not save: '+(e&&e.message||e);}}
 /*GSTR2B*/
 const MN=['January','February','March','April','May','June','July','August','September','October','November','December'];
-const fyl=(m,y)=>{const s=m>=4?y:y-1;return s+'-'+String((s+1)%100).padStart(2,'0');},mlab=r=>r.mm?MN[r.mm-1].slice(0,3)+'-'+String(r.yy%100).padStart(2,'0'):'';   // Month label, e.g. May-25
+const fyl=(m,y)=>{const s=m>=4?y:y-1;return s+'-'+String((s+1)%100).padStart(2,'0');},mlab=r=>r.mm?(r.q||MN[r.mm-1].slice(0,3))+'-'+String(r.yy%100).padStart(2,'0'):'';   // Month label, e.g. May-25
 const sx=(wb,n)=>wb.Sheets[n]?XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:null}):null;
 const em=x=>x==null?'':x, blank=r=>!r.some(c=>c!=null&&c!=='');
 const H4=['Integrated Tax(\u20B9)','Central Tax(\u20B9)','State/UT Tax(\u20B9)','Cess(\u20B9)'],HN=['IGST','CGST','SGST','Cess'];
@@ -1010,10 +1021,11 @@ function errfix(ws,n,o){if(!ws)return;let k=0,mr=-1,mc=-1;for(const a in ws){if(
   if(k)o.warn.push(k+' Excel error cell(s) such as #N/A in sheet '+n+' were copied as text - check them');}
 function parse2b(buf,name){
   const m=name.match(/(\d{2})(\d{4})_([0-9A-Z]{15})_GSTR2B/i),o={name,issues:[],warn:[],p:{},order:[],cnt:{},tie:[],netv:0};
-  if(m){o.mm=+m[1];o.yy=+m[2];o.gstin=m[3].toUpperCase();if(o.mm<1||o.mm>12){o.issues.push('Month in file name is invalid');o.mm=0;}}else o.issues.push('File name is not in MMYYYY_GSTIN_GSTR2B format');
+  if(m){o.mm=+m[1];o.yy=+m[2];o.gstin=m[3].toUpperCase();if(o.mm<1||o.mm>12){o.issues.push('Month in file name is invalid');o.mm=0;}
+    if(/GSTR2BQ/i.test(name)&&o.mm){const qq=[3,6,9,12].indexOf(o.mm);if(qq<0)o.issues.push('Quarterly 2B file name must carry the last month of the quarter (03, 06, 09 or 12)');else o.q=['Jan-Mar','Apr-Jun','Jul-Sep','Oct-Dec'][qq];}}else o.issues.push('File name is not in MMYYYY_GSTIN_GSTR2B format');
   let wb;try{wb=XLSX.read(buf,{type:'array'});}catch(e){o.issues.push('Could not read workbook: '+e.message);return o;}
   const lab=o.mm?mlab(o):'?',SN=wb.SheetNames,bi=SN.indexOf('B2B');
-  if(bi<0){o.issues.push('B2B sheet not found');return o;}
+  if(bi<0){o.issues.push(SN.indexOf('ITC Available')>=0?'B2B sheet not found - this is a summary-only 2B file (no invoice-level sheets). Download the full GSTR-2B Excel from the portal':'B2B sheet not found');return o;}
   // every sheet from B2B to the right, each kept as its own tab
   SN.slice(bi).forEach(n=>{errfix(wb.Sheets[n],n,o);const R=sx(wb,n);if(!R)return;const hl=hdrEnd(R);
     if(hl<0){o.issues.push('Sheet '+n+' not read - header row not found');return;}
@@ -1033,9 +1045,14 @@ async function run2(files){
   T.textContent='Done';G2={};
   rs.sort((a,b)=>(a.gstin||'').localeCompare(b.gstin||'')||(a.yy*12+a.mm)-(b.yy*12+b.mm));
   rs.forEach(r=>{if(r.gstin){const g=G2[r.gstin]=G2[r.gstin]||{rs:[],p:{},order:[]};g.rs.push(r);}});
-  for(const k in G2){const g=G2[k],seen={};
-    g.rs.forEach(r=>{if(!r.mm)return;const kk=r.yy*12+r.mm;if(seen[kk])r.issues.push('Duplicate month - another file for '+mlab(r)+' was also dropped in');seen[kk]=1;
+  for(const k in G2){const g=G2[k],seen={},sigM={};
+    g.rs.forEach(r=>{if(!r.mm)return;const kk=r.yy*12+r.mm;
+      const sg=r.issues.length?null:r.order.map(n=>n+'\u0001'+JSON.stringify(r.p[n].d)).join('\u0002');
+      if(sg&&sigM[kk]&&sigM[kk].sg===sg){r.dupSkip=true;r.warn.push('Identical copy of '+sigM[kk].name+' - ignored, counted once');return;}
+      if(sg&&!sigM[kk])sigM[kk]={sg,name:r.name};
+      if(r.q?[kk-2,kk-1,kk].some(x=>seen[x]):seen[kk])r.issues.push('Duplicate month - another file for '+mlab(r)+' (or an overlapping period) was also dropped in');if(r.q)[kk-2,kk-1,kk].forEach(x=>seen[x]=1);else seen[kk]=1;
       r.order.forEach(n=>{if(!g.p[n]){g.p[n]=[];g.order.push(n);}g.p[n].push(r.p[n]);});});
+    g.rs=g.rs.filter(r=>!r.dupSkip);
     // completeness, month by month in every sheet: each month's non-empty source cells and column headings must all be in the output
     g.comp={sheets:g.order.length,cells:0,checks:0,fail:[],rows:[['Sheet','Month','Source cells','Output cells','Status']]};
     g.order.forEach(n=>{const a=align(g.p[n]),oc={},ec={};
@@ -1199,7 +1216,7 @@ function parse8(buf,name){
 // flat register. Row = [Month (GSTR-2B period), 21 fields, Amendment status, Section]
 function conso8(g,o){
   const out=[],log=[],idx={},idx2={},exp={},expT={},st={rep:0,none:0,dm:[],noo:[]};
-  const key=(t,gs,no,dt,ty)=>[t,gs,no,dt,t===1?ty:''].join('|'),key2=(t,gs,no,ty)=>[t,gs,no,t===1?ty:''].join('|');
+  const nty=s=>{s=String(s==null?'':s).trim().toUpperCase();return /^C/.test(s)?'C':/^D/.test(s)?'D':s;},key=(t,gs,no,dt,ty)=>[t,gs,no,dt,t===1?nty(ty):''].join('|'),key2=(t,gs,no,ty)=>[t,gs,no,t===1?nty(ty):''].join('|');
   const bump=(lab,row,s)=>{exp[lab]=(exp[lab]||0)+s;const a=expT[lab]=expT[lab]||N8.map(()=>0);N8.forEach((c,q)=>{if(typeof row[c]==='number')a[q]+=s*row[c];});};
   T8.forEach(([n,t,lab,am])=>{const rows=g.rows[n];if(!rows||(t===2&&!o.eco)||(am&&o.am==='off'))return;
     rows.forEach(x=>{const f=x.f.slice();
@@ -1208,8 +1225,9 @@ function conso8(g,o){
       if(!am){const k=key(t,f[0],f[2],f[4],f[3]);if(idx[k]==null)idx[k]=out.length;const k2=key2(t,f[0],f[2],f[3]);if(idx2[k2]==null)idx2[k2]=out.length;out.push(row);bump(lab,row,1);return;}
       const ok=key(t,f[0],x.on,x.od,x.ot),at=idx[ok];
       if(o.am==='rep'&&at!=null){const old=out[at];
+        const hadItc=[17,18,19,20].some(k=>Math.abs(+old[k]||0)>.004);
         [3,4,5,6,7,8,9,10,11,12,13,16,17,18,19,20].forEach(k=>{const a=old[k],b=row[k],d=(typeof a==='number'||typeof b==='number')?Math.abs((+a||0)-(+b||0))>.004:String(a)!==String(b);if(d)log.push([6+at+1,row[1],x.on,old[0],H8[k-1],a,b]);});
-        bump(old[23],old,-1);row[0]=old[0];row[22]='Amended in '+(x.per||'?')+' - original row replaced with the revised document; ITC considered as shown on the amended row';out[at]=row;bump(lab,row,1);st.rep++;
+        bump(old[23],old,-1);if(hadItc)row[0]=old[0];row[22]='Amended in '+(x.per||'?')+' - original row replaced with the revised document; ITC considered as shown on the amended row';out[at]=row;bump(lab,row,1);st.rep++;
         idx[key(t,f[0],f[2],f[4],f[3])]=at;return;}
       if(o.am==='rep'){const dm=idx2[key2(t,f[0],x.on,x.ot)]!=null;
         row[22]=dm?'Amended in '+x.per+' - revised row only; a document with the same number but a different date is in the file, so it was NOT replaced':'Amended in '+x.per+' - revised row only; original is not in this file, so nothing to replace';
@@ -1266,7 +1284,7 @@ function wb8(g,o){
   sr.push(tot(5,4+ms.length));
   const hr2=sr.length+1,sec=T8.map(x=>x[2]);sr.push([''],['Section-wise',...HS]);
   const s0=sr.length+1;sec.forEach((x,i)=>sr.push(line(23,s0+i,x)));
-  sr.push(tot(s0,s0+sec.length-1),[''],['Both tables read the "8A Conso" tab. A row replaced by an amendment stays in the month of the original document.']);
+  sr.push(tot(s0,s0+sec.length-1),[''],['Both tables read the "8A Conso" tab. A row replaced by an amendment is shown in the GSTR-2B month of the revised row, unless the original row had ITC considered, in which case it stays in the original\'s month.']);
   sheets.push({name:'Month summary',rows:sr,wd:[24,10,18,18,18,18,16,18,20],freeze:4,heights:{3:34,[hr2]:34},style:(r,q,v)=>(r===3||r===hr2)?3:(q>=2&&r>3&&r!==hr2?6:5)});
   const cr=[['Check','Detail','Source','Output','Result'],['File','Source file '+g.file.name+' - GSTIN '+g.gstin+' - FY '+g.fy+' - '+g.legal,'','',[...g.file.issues,...g.file.warn].join('; ')||'OK'],...k.R];
   sheets.push({name:'Checks',rows:cr,wd:[34,70,12,12,120],freeze:1,filter:[0,cr.length-1],heights:{0:30},style:(r,q,v)=>r===0?3:(q===4&&!/^(OK|Info)/.test(v)?7:5)});
@@ -1280,7 +1298,7 @@ function render8(){
     tr.push(`<tr><td>${esc(f.name)}</td><td>${esc(f.gstin)}</td><td>${esc(f.fy)}</td><td class="n">${cn('B2B')}</td><td class="n">${cn('B2B-CDNR')}</td><td class="n">${cn('ECO')}</td><td class="n">${cn('B2BA')+cn('B2B-CDNRA')+cn('ECOA')}</td><td class="n">${k?fmt(k.itc):''}</td><td class="${cl}">${esc(iss.join('; ')||'OK')}</td></tr>`);});});
   $('stats8').innerHTML=`<div><b>${files}</b><span>files read</span></div><div><b>${ks.length}</b><span>GSTIN / FY</span></div><div><b>${rowsT}</b><span>rows in the Conso</span></div><div><b class="${warn?'wn':''}">${warn}</b><span>with a note</span></div><div><b class="${bad?'er':'ok'}">${bad}</b><span>need checking</span></div>`;
   $('tb8').innerHTML='<tr>'+['File','GSTIN','FY','B2B','B2B-CDNR','ECO','Amendment rows','ITC considered (8A total)','Checks'].map(x=>`<th>${x}</th>`).join('')+'</tr>'+tr.join('');
-  $('dl8').innerHTML=ks.map(key=>`<button class="pri" data-g="${key}">Download Excel - ${esc(G8[key].gstin)} (FY ${esc(G8[key].fy)})</button>`).join('');$('res8').classList.remove('hide');}
+  $('dl8').innerHTML=ks.map(key=>`<button class="pri" data-g="${key}">Download Excel - ${esc(G8[key].gstin)} (FY ${esc(G8[key].fy)})${G8[key].sfx?' - '+esc(G8[key].file.name):''}</button>`).join('');$('res8').classList.remove('hide');}
 async function run8(files){
   const T=$('ptxt8');T.textContent='Reading files\u2026';const items=[];
   try{for(const f of files){
@@ -1289,13 +1307,16 @@ async function run8(files){
   if(!items.length){T.textContent='No .xlsx files found.';return;}
   const rs=[];for(let i=0;i<items.length;i++){T.textContent='Reading file '+(i+1)+' of '+items.length;await new Promise(r=>setTimeout(r));const r=parse8(items[i].buf,items[i].name);r.name=items[i].name;rs.push(r);}
   G8={};
-  rs.forEach(r=>{const k=(r.gstin||'?')+'|'+(r.fy||'?');const g=G8[k]=G8[k]||{gstin:r.gstin,fy:r.fy,all:[]};g.all.push(r);});
-  for(const k in G8){const g=G8[k];g.all.sort((a,b)=>b.genT-a.genT);
-    const use=g.all.find(f=>!f.issues.length)||g.all[0];g.file=use;g.legal=use.legal;g.gen=use.gen;g.rows=use.rows;g.file.name=use.name;
-    g.all.forEach(f=>{if(f!==use&&!f.issues.length)f.issues.push('Ignored - a newer 8A file for the same GSTIN and FY was also dropped in ('+use.name+')');});}
+  const grp={};rs.forEach(r=>{const b=(r.gstin||'?')+'|'+(r.fy||'?');(grp[b]=grp[b]||[]).push(r);});
+  for(const b in grp){const L=grp[b].sort((x,y)=>y.genT-x.genT),bySig={},order=[];
+    L.forEach(f=>{const sg=f.issues.length?'ERR|'+f.name:JSON.stringify([f.legal,f.rows]);if(!bySig[sg]){bySig[sg]=[];order.push(sg);}bySig[sg].push(f);});
+    order.forEach((sg,i)=>{const fs=bySig[sg],use=fs[0],k=i?b+'|'+(i+1):b;
+      G8[k]={gstin:use.gstin,fy:use.fy,all:fs,sfx:i?'_'+(i+1):'',file:use,legal:use.legal,gen:use.gen,rows:use.rows};
+      fs.slice(1).forEach(f=>f.warn.push('Identical copy of '+use.name+' - ignored, counted once'));
+      if(order.length>1)fs.forEach(f=>f.warn.push('Another file for this GSTIN and FY has different content ('+order.length+' versions) - each is kept as its own workbook, nothing is merged'));});}
   T.textContent='Done';render8();$('msg8').textContent='';}
 $('dl8').onclick=async e=>{const k=e.target.dataset&&e.target.dataset.g;if(!k)return;try{$('msg8').textContent='Building workbook\u2026';const g=G8[k],r=wb8(g,opt8());if(!r.c.out.length){$('msg8').textContent='Nothing to export - no rows were read from this file. See the Checks column in the table above.';return;}
-  await save8('GSTR_8A_Conso_'+g.gstin+'_FY'+g.fy+'.xlsx',await buildXlsx(r.sheets));}catch(x){$('msg8').textContent='Error: '+x.message;}};
+  await save8('GSTR_8A_Conso_'+g.gstin+'_FY'+g.fy+(g.sfx||'')+'.xlsx',await buildXlsx(r.sheets));}catch(x){$('msg8').textContent='Error: '+x.message;}};
 async function save8(name,data){const m=$('msg8');let d=null;try{d=typeof claude!=='undefined'?await claude.use('downloads'):null;}catch(e){}
   try{if(d)await d.save({filename:name,data});else dl(name,data);m.textContent='Saved '+name;}catch(e){m.textContent=e&&e.code==='declined'?'Download cancelled.':'Could not save: '+(e&&e.message||e);}}
 ['c8am','c8neg','c8eco'].forEach(i=>$(i).onchange=()=>{if(Object.keys(G8).length)render8();});
@@ -1327,9 +1348,9 @@ const check=(R,path)=>R.kind==='3B'?G3.crossCheck(R,path):G1.crossCheck(R,path);
 function norm(r){const R=r.R,h=R.h||{};if(!h.gstin||!h.period)return null;
   if(R.kind==='3B'){if(R.summaryDoc||!h.year||!R.t31||!R.t31.length)return null;
     const s=[0,0,0,0,0];[0,1,2,4].forEach(i=>{const a=R.t31[i]||[];for(let k=0;k<5;k++)s[k]+=a[k]||0;});
-    return {kind:'3B',gstin:h.gstin,fy:h.year,mon:h.period,v:s.map(rd),status:r.status,name:h.name,trade:h.trade};}
+    return {kind:'3B',gstin:h.gstin,fy:h.year,mon:h.period,qtr:h.qtr,v:s.map(rd),status:r.status,name:h.name,trade:h.trade};}
   if(R.kind==='1'){const tl=(R.rows||[]).find(x=>x.table==='TL');if(!tl||!h.fy)return null;
-    return {kind:'1',gstin:h.gstin,fy:h.fy,mon:h.period,v:[0,1,2,3,4].map(k=>rd(tl.vals[k])),status:r.status,name:h.name,trade:h.trade};}
+    return {kind:'1',gstin:h.gstin,fy:h.fy,mon:h.period,qtr:h.qtr,v:[0,1,2,3,4].map(k=>rd(tl.vals[k])),status:r.status,name:h.name,trade:h.trade};}
   return null;}
 function groups(recs){const gs=[];
   recs.forEach(r=>{const n=norm(r);if(!n)return;const k=n.gstin+'|'+n.fy;let g=gs.find(x=>x.k===k);
@@ -1400,16 +1421,16 @@ async function workbook(){
 const key=r=>{const h=r.R.h||{};return [h.gstin||'',fyOf(r)||'',MON.indexOf(h.period)];};
 const sort=a=>a.sort((x,y)=>{const p=key(x),q=key(y);return p[0].localeCompare(q[0])||p[1].localeCompare(q[1])||p[2]-q[2]||(x.R.kind||'').localeCompare(y.R.kind||'');});
 const table=()=>'<tr>'+['File','Return','GSTIN','Period','Taxable value','IGST','CGST','SGST','Cess','Checks'].map(x=>`<th>${x}</th>`).join('')+'</tr>'+recs.map(r=>{const n=norm(r),cl=r.R.issues.length?'er':(r.R.warn.length?'wn':'ok');
-  return `<tr><td>${esc(base(r.path))}</td><td>${r.R.kind==='3B'?'GSTR-3B':(r.R.kind==='1'?'GSTR-1':'?')}</td><td>${esc(r.R.h.gstin||'')}</td><td>${esc((r.R.h.period||'')+' '+(fyOf(r)||''))}</td>`+(n?n.v.map(x=>`<td class="n">${fmt(x)}</td>`).join(''):'<td></td><td></td><td></td><td></td><td></td>')+`<td class="${cl}">${esc([...r.R.issues,...r.R.warn].join('; ')||'OK')}</td></tr>`;}).join('');
+  return `<tr><td>${esc(base(r.path))}</td><td>${r.R.kind==='3B'?'GSTR-3B':(r.R.kind==='1'?'GSTR-1':'?')}</td><td>${esc(r.R.h.gstin||'')}</td><td>${esc(qPL(r.R.h)+' '+(fyOf(r)||''))}</td>`+(n?n.v.map(x=>`<td class="n">${fmt(x)}</td>`).join(''):'<td></td><td></td><td></td><td></td><td></td>')+`<td class="${cl}">${esc([...r.R.issues,...r.R.warn].join('; ')||'OK')}</td></tr>`;}).join('');
 const after=()=>{$('ent').value=G3.suggestEntity();G3.updPv();const gs=groups(recs),msg=[];
-  gs.forEach(g=>[['1','GSTR-1'],['3B','GSTR-3B']].forEach(([k,l])=>{const miss=MON.filter(m=>!g.m[k][m]);if(miss.length)msg.push(g.gstin+' '+g.fy+': '+l+' not found for '+miss.map(m=>m.slice(0,3)).join(', '));}));
-  $('note').textContent=gs.length?(msg.length?'Months with no file are shown as 0 in the reco. '+msg.join(' | '):''):'No monthly GSTR-1 or GSTR-3B return could be read from these files.';};
+  gs.forEach(g=>[['1','GSTR-1'],['3B','GSTR-3B']].forEach(([k,l])=>{const cov=(mp,m)=>{if(mp[m])return true;const i=MON.indexOf(m);for(const e in mp){const n=mp[e];if(n&&n.qtr){const j=MON.indexOf(e);if(i>=j-2&&i<=j)return true;}}return false;};const miss=MON.filter(m=>!cov(g.m[k],m));if(miss.length)msg.push(g.gstin+' '+g.fy+': '+l+' not found for '+miss.map(m=>m.slice(0,3)).join(', '));}));
+  const qn=recs.some(r=>r.R.h&&r.R.h.qtr)?'Quarterly (QRMP) returns are placed against the last month of the quarter (Jun, Sep, Dec, Mar); the other two months show 0, and the Total row and Difference columns are unaffected. ':'';$('note').textContent=gs.length?(qn+(msg.length?'Months with no file are shown as 0 in the reco. '+msg.join(' | '):'')):'No monthly GSTR-1 or GSTR-3B return could be read from these files.';};
 const xlsxName=()=>{const ent=G3.entName(),gs=groups(recs),g=[...new Set(gs.map(x=>x.gstin))],fy=[...new Set(gs.map(x=>x.fy))].sort().join('_');
   if(!g.length)return ent+'_Outwards_Reco.xlsx';
   return (g.length===1?ent+'_'+G3.stateOf(g[0])+'_'+g[0]:ent+'_AllStates_'+g.length+'GSTINs')+'_GSTR1_vs_3B_Reco'+(fy?'_FY'+fy:'')+'.xlsx';};
 const mode={label:'Outwards Reco',
   sub:'Drop your GSTR-1 and GSTR-3B PDFs together (all months, both returns), a folder of them, or a ZIP.',
-  foot:'Excel (built on the reference reco workbook): for each GSTIN and financial year, three sheets. GSTR 3B VS GSTR 1 is laid out as As per GSTR-1 | As per GSTR-3B | Difference, April to March with a Total row. Books vs GSTR 1 and Books vs GSTR 3B keep an empty block on the left for your sales-register pivot, with the return figures in the middle and Variance (Books minus return) on the right. GSTR-1 figures are the closing Total Liability line (taxable value, IGST, CGST, SGST, Cess); GSTR-3B figures are Table 3.1 (a)+(b)+(c)+(e), leaving out (d) inward supplies on reverse charge. The Difference columns (GSTR-1 minus GSTR-3B) and the Total row are live formulas. A month with no file shows as 0.',
+  foot:'Excel (built on the reference reco workbook): for each GSTIN and financial year, three sheets. GSTR 3B VS GSTR 1 is laid out as As per GSTR-1 | As per GSTR-3B | Difference, April to March with a Total row. Books vs GSTR 1 and Books vs GSTR 3B keep an empty block on the left for your sales-register pivot, with the return figures in the middle and Variance (Books minus return) on the right. GSTR-1 figures are the closing Total Liability line (taxable value, IGST, CGST, SGST, Cess); GSTR-3B figures are Table 3.1 (a)+(b)+(c)+(e), leaving out (d) inward supplies on reverse charge. The Difference columns (GSTR-1 minus GSTR-3B) and the Total row are live formulas. A month with no file shows as 0. Quarterly (QRMP) returns are placed against the last month of the quarter.',
   parse,check,rec:(it,R,status)=>({path:it.path,R,status}),
   err:(it,e)=>({path:it.path,R:{h:{},rows:[],t31:[],t4:{},t61:[],kind:'?',issues:['Could not read PDF: '+e.message],warn:[]},status:'ERROR'}),
   sort,table,after,xlsxName,workbook};
@@ -1426,7 +1447,7 @@ const MODES={
   err:(it,e)=>({path:it.path,buf:it.buf,R:{h:{},rows:[],issues:['Could not read PDF: '+e.message],warn:[]},status:'ERROR'}),
   sort:a=>G1.sortRecs(a),
   table:()=>'<tr>'+['File','Status','Period','Table lines','Total Liability value','Total Liability IGST','Checks'].map(x=>`<th>${x}</th>`).join('')+'</tr>'+recs.map(r=>{const t=r.R.rows.find(x=>x.table==='TL'),v=t?t.vals:[],cl=r.R.issues.length?'er':(r.R.warn.length?'wn':'ok');
-    return `<tr><td>${esc(base(r.path))}</td><td class="${r.status==='FILED'?'':'wn'}">${r.status}</td><td>${r.R.h.period||''} ${r.R.h.year||''}</td><td class="n">${r.R.rows.length}</td><td class="n">${fmt(v[0])}</td><td class="n">${fmt(v[1])}</td><td class="${cl}">${esc([...r.R.issues,...r.R.warn].join('; ')||'OK')}</td></tr>`;}).join(''),
+    return `<tr><td>${esc(base(r.path))}</td><td class="${r.status==='FILED'?'':'wn'}">${r.status}</td><td>${qPL(r.R.h)} ${r.R.h.year||''}</td><td class="n">${r.R.rows.length}</td><td class="n">${fmt(v[0])}</td><td class="n">${fmt(v[1])}</td><td class="${cl}">${esc([...r.R.issues,...r.R.warn].join('; ')||'OK')}</td></tr>`;}).join(''),
   after:()=>{$('ent').value=G3.suggestEntity();G3.updPv();const sk=G1.consolidate(recs).skipped;$('note').textContent=sk.length?`Consolidated sheet: ${sk.length} file(s) left out: `+sk.slice(0,4).map(s=>base(s.path)+' ('+s.why+')').join('; ')+(sk.length>4?'; …':''):'';},
   xlsxName:()=>{const ent=G3.entName(),g=[...new Set(recs.map(r=>r.R.h.gstin).filter(Boolean))],fy=[...new Set(recs.map(r=>r.R.h.fy).filter(Boolean))].sort().join('_');
     if(!g.length)return ent+'_GSTR1_Data.xlsx';
@@ -1516,7 +1537,7 @@ async function dlSort(gs){
       if(!h.gstin||mi<0||!y0){if(all)put('_Unsorted/'+base(r.path),r.buf,r.path);return;}
       if(!gs.includes(h.gstin))return;
       const yr=C12[mi]<=3?y0+1:y0,nn=String(mi+1).padStart(2,'0');
-      put(h.gstin+'/FY '+y0+'-'+String(y0+1).slice(2)+'/'+typ+'/'+nn+'_'+h.period.slice(0,3)+'-'+yr+'_'+typ+'_'+h.gstin+'.pdf',r.buf,r.path);});
+      put(h.gstin+'/FY '+y0+'-'+String(y0+1).slice(2)+'/'+typ+'/'+nn+'_'+(h.qtr||h.period.slice(0,3))+'-'+yr+'_'+typ+'_'+h.gstin+'.pdf',r.buf,r.path);});
     z.file('_Sort_Report.csv',csv.join('\n'));
     const blob=await z.generateAsync({type:'blob',compression:'STORE'}),t=typ.replace('-','');
     await save(gs.length===1?gs[0]+'_'+t+'_Sorted.zip':'GST_'+t+'_Sorted_'+gs.length+'GSTINs.zip',blob);
@@ -1611,8 +1632,8 @@ const SO=(()=>{
     }
     if(!r.gstin){const g=text.match(GST);r.gstin=g?g[0]:null;}
     if(r.mi<0||!r.y0){
-      const fy=text.match(/(?:Financial year|Year)\s+(\d{4})-(\d{2})/i),pm=text.match(/(?:Tax period|Period|Month)\s+(January|February|March|April|May|June|July|August|September|October|November|December)\b/i);
-      r.y0=fy?+fy[1]:null;r.mi=pm?MN.findIndex(x=>x.toLowerCase()===pm[1].toLowerCase()):-1;}
+      const fy=text.match(/(?:Financial year|Year)\s+(\d{4})-(\d{2})/i),pm=text.match(/(?:Tax period|Period|Month)\s+((?:Jan|Apr|Jul|Oct)[a-z]*\s*[-\u2013]\s*(?:Mar|Jun|Sep|Dec)[a-z]*|January|February|March|April|May|June|July|August|September|October|November|December)\b/i),pq=pm&&qParse(pm[1]);
+      r.y0=fy?+fy[1]:null;r.mi=pm?MN.findIndex(x=>x.toLowerCase()===(pq?pq.end:pm[1]).toLowerCase()):-1;if(pq)r.qtr=pq.lab;}
     return r;
   }
   const sortable=it=>!it.r.skip&&it.r.type&&it.r.gstin&&it.r.mi>=0&&it.r.y0;
@@ -1624,7 +1645,7 @@ const SO=(()=>{
       if(!sortable(it)){put('_Unsorted/',base(it.path),it);return;}
       const cm=CAL[r.mi],yr=cm<=3?r.y0+1:r.y0,nn=String(r.mi+1).padStart(2,'0'),mname=nn+' '+MN[r.mi]+' '+yr;
       const dir=r.gstin+'/FY '+fyl(r.y0)+'/'+rtl(r.type)+'/'+(monthDirs?mname+'/':'');
-      put(dir,nn+'_'+MN[r.mi].slice(0,3)+'-'+yr+'_'+rtl(r.type)+'_'+r.gstin+'.pdf',it);});
+      put(dir,nn+'_'+(r.qtr||MN[r.mi].slice(0,3))+'-'+yr+'_'+rtl(r.type)+'_'+r.gstin+'.pdf',it);});
     return out;
   }
   function render(){
@@ -1749,7 +1770,7 @@ function sniff(rows){
   if(m=all.match(/Financial\s+year\W*\s*(20\d{2}-\d{2})/i))h.fy=m[1];else if(m=all.match(/\b(20\d{2}-\d{2})\b/))h.fy=m[1];
   for(const r of rows.filter(r=>r.page===1)){
     if(m=r.text.match(/Legal name of the registered person\s+(.+)$/i)){h.legalName=m[1].trim();break;}}
-  if(m=all.match(/Tax period\s+([A-Za-z]+)/i)||all.match(/Period\s+([A-Z][a-z]+)\b/))h.period=m[1];
+  if(m=all.match(/Tax period\s+([A-Za-z]+(?:\s*[-\u2013]\s*[A-Za-z]+)?)/i)||all.match(/Period\s+([A-Z][a-z]+(?:\s*[-\u2013]\s*[A-Za-z]+)?)\b/)){const q=qParse(m[1]);if(q){h.period=q.lab;h.qtr=q.lab;}else h.period=m[1];}
   h.consolidated=/Consolidated|System Generated Annual/i.test(head)||type==='9';
   if(type==='9')h.period='Annual';
   if(h.consolidated&&!h.period)h.period='Annual';
@@ -2104,7 +2125,7 @@ function group(){
     for(const t of ['1','3B','9']){
       /* the same period twice is a duplicate; a consolidated file next to monthly files would double count */
       const seen={},use=[];
-      for(const f of g.files[t]){const k=f.period||f.name;if(seen[k]){f.status='Duplicate of '+seen[k]+'; ignored';f.ignored=true;continue;}seen[k]=f.name;use.push(f);}
+      for(const f of g.files[t]){const ks=f.consolidated?[f.period||f.name]:(qCover(f.period,f.qtr).length?qCover(f.period,f.qtr):[f.name]),hit=ks.find(k=>seen[k]);if(hit){f.status='Duplicate of '+seen[hit]+(f.qtr?' (overlapping months)':'')+'; ignored';f.ignored=true;continue;}ks.forEach(k=>seen[k]=f.name);use.push(f);}
       if(use.length>1&&use.some(f=>f.consolidated)){const c=use.find(f=>f.consolidated);use.forEach(f=>{if(f!==c){f.ignored=true;f.status='Ignored: a consolidated file is also present';}});g.files[t]=[c];}
       else g.files[t]=use;
     }
