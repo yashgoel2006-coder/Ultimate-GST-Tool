@@ -979,8 +979,8 @@ function align(pieces){
 // ---- tie-out against the 2B's own ITC summary sheets ----
 const kcol=(p,re)=>p?p.fk.findIndex(k=>re.test(k)):-1;
 const taxcols=p=>H4.map(h=>p.fk.findIndex(k=>k.endsWith(h)&&k.indexOf('Amount declared')<0&&k.indexOf('Original')<0));
-function ssum(p,f){const t=[0,0,0,0];if(!p)return t;const c=taxcols(p),dt=kcol(p,/(Note type|Document type)$/);
-  p.d.forEach(x=>{const ty=dt<0?'':String(x.c[dt]||'').toLowerCase();if(f&&!f(ty))return;c.forEach((j,i)=>{if(j>=0&&typeof x.c[j]==='number')t[i]+=x.c[j];});});return t;}
+function ssum(p,f,ab){const t=[0,0,0,0];if(!p)return t;const c=taxcols(p),dt=kcol(p,/(Note type|Document type)$/);
+  p.d.forEach(x=>{const ty=dt<0?'':String(x.c[dt]||'').toLowerCase();if(f&&!f(ty))return;c.forEach((j,i)=>{if(j>=0&&typeof x.c[j]==='number')t[i]+=ab?Math.abs(x.c[j]):x.c[j];});});return t;}
 function summ(R){const o={};if(!R)return o;R.slice(6).forEach(r=>{const lab=typeof r[1]==='string'?r[1].trim():'';if(lab&&(r[0]==='Details'||r[0]==null)){const a=o[lab]=o[lab]||[0,0,0,0];for(let i=0;i<4;i++)a[i]+=typeof r[3+i]==='number'?r[3+i]:0;}});return o;}
 const sline=(S,pre,am)=>{const t=[0,0,0,0];for(const l in S)if(l.startsWith(pre)&&(l.indexOf('Amendment')>=0)===!!am)for(let i=0;i<4;i++)t[i]+=S[l][i];return t;};
 const add4=(a,b)=>a.map((x,i)=>x+b[i]);
@@ -990,18 +990,18 @@ function tieout(wb,P,o){
   const bk=[
    ['Invoices (B2B + B2B ITC Reversal)',add4(ssum(P['B2B']),ssum(P['B2B (ITC Reversal)'])),sm('B2B - Invoices',A,NA,RV)],
    ['Debit notes (B2B-CDNR + B2B-DNR)',add4(ssum(P['B2B-CDNR'],deb),ssum(P['B2B-DNR'])),sm('B2B - Debit notes',A,NA,RV)],
-   ['Credit notes (B2B-CDNR)',ssum(P['B2B-CDNR'],cre),sm('B2B - Credit notes',A,NA)],
+   ['Credit notes (B2B-CDNR)',ssum(P['B2B-CDNR'],cre,1),sm('B2B - Credit notes',A,NA)],
    ['ECO documents',ssum(P['ECO']),sm('ECO - Documents',A,NA)],
    ['Import of goods (IMPG)',ssum(P['IMPG']),sm('IMPG - ',A,NA)],
    ['Import from SEZ (IMPGSEZ)',ssum(P['IMPGSEZ']),sm('IMPGSEZ - ',A,NA)],
    ['ISD invoices',ssum(P['ISD'],t=>!cre(t)),sm('ISD - Invoices',A,NA)],
-   ['ISD credit notes',ssum(P['ISD'],cre),sm('ISD - Credit notes',A,NA)],
+   ['ISD credit notes',ssum(P['ISD'],cre,1),sm('ISD - Credit notes',A,NA)],
    ['Rejected invoices',ssum(P['B2B(Rejected)']),sm('B2B - Invoices',RJ)],
    ['Rejected debit notes',ssum(P['B2B-CDNR(Rejected)'],deb),sm('B2B - Debit notes',RJ)],
-   ['Rejected credit notes',ssum(P['B2B-CDNR(Rejected)'],cre),sm('B2B - Credit notes',RJ)],
+   ['Rejected credit notes',ssum(P['B2B-CDNR(Rejected)'],cre,1),sm('B2B - Credit notes',RJ)],
    ['Rejected ECO',ssum(P['ECO(Rejected)']),sm('ECO - Documents',RJ)],
    ['Rejected ISD invoices',ssum(P['ISD(Rejected)'],t=>!cre(t)),sm('ISD - Invoices',RJ)],
-   ['Rejected ISD credit notes',ssum(P['ISD(Rejected)'],cre),sm('ISD - Credit notes',RJ)]];
+   ['Rejected ISD credit notes',ssum(P['ISD(Rejected)'],cre,1),sm('ISD - Credit notes',RJ)]];
   const f2=x=>x.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
   bk.forEach(([nm,sh,su])=>{const d=sh.map((x,i)=>x-su[i]),bad=d.some(x=>Math.abs(x)>0.05);
     if(bad||sh.some(x=>x)||su.some(x=>x))o.tie.push({nm,sh,su,d,bad});
@@ -1010,7 +1010,7 @@ function tieout(wb,P,o){
   const am=add4(add4(sline(A,'',1),sline(NA,'',1)),[0,0,0,0]),amRows=['B2BA','B2B-CDNRA','ECOA','ISDA','IMPGA','IMPGSEZA'].reduce((s,n)=>s+(P[n]?P[n].d.length:0),0);
   if(!amRows&&am.some(x=>Math.abs(x)>0.005))o.issues.push('The 2B summary shows amendments ('+am.map((x,i)=>HN[i]+' '+f2(x)).join(', ')+') but the amendment sheets have no rows');}
 function taxable(p,sign){if(!p)return 0;const j=kcol(p,/Taxable Value \(\u20B9\)$/),dt=kcol(p,/(Note type|Document type)$/);
-  return p.d.reduce((s,x)=>{const v=typeof x.c[j]==='number'?x.c[j]:0;return s+(sign&&dt>=0&&/credit/i.test(String(x.c[dt]))?-v:v);},0);}
+  return p.d.reduce((s,x)=>{const v=typeof x.c[j]==='number'?x.c[j]:0;return s+(sign&&dt>=0&&/credit/i.test(String(x.c[dt]))?-Math.abs(v):v);},0);}
 function dupcheck(p,cat,o){if(!p)return;const g=kcol(p,/GSTIN of supplier$/),no=kcol(p,/(invoice number|note number)$/i),dd=kcol(p,/(invoice date|note date)$/i),dt=kcol(p,/(Note type|Document type)$/),seen={};
   p.d.forEach(x=>{const q=[dt<0?cat:x.c[dt],x.c[g],x.c[no],x.c[dd]].join('|');if(seen[q])o.issues.push('Duplicate document '+x.c[no]+' ('+x.c[g]+')');seen[q]=1;});}
 // Excel error cells (#N/A, #REF! ...) are read as blanks by the reader library, so they are turned into visible text first and reported
@@ -1129,7 +1129,7 @@ function conso(g,o){
       ix=TG.map(x=>x[1][t]?find(x[1][t]):-1),onx=am?1+lv.findIndex((h,j)=>/number$/i.test(h)&&/original/i.test(ky[j])):0;
     for(let i=a.hdr[1]+1;i<a.rows.length;i++){const r=a.rows[i];if(!r.slice(1).some(c=>c!==''&&c!=null))continue;want++;
       const ty=ix[3]>0?String(r[ix[3]]||''):'',ng=o.neg&&(t===1||t===2)&&/credit/i.test(ty),
-        row=[r[0],...ix.map((j,k)=>{let v=j<0?'':r[j];if(v==null)v='';if(ng&&typeof v==='number'&&(k===5||(k>=8&&k<=12)))v=-v;return v;}),'',lab];
+        row=[r[0],...ix.map((j,k)=>{let v=j<0?'':r[j];if(v==null)v='';if(ng&&typeof v==='number'&&(k===5||(k>=8&&k<=12)))v=v?-Math.abs(v):v;return v;}),'',lab];
       if(!am){const kk=t+'|'+row[1]+'|'+row[3];if(idx[kk]==null)idx[kk]=out.length;}
       else{const ok=onx>0?String(r[onx]):'',at=idx[t+'|'+row[1]+'|'+ok];
         if(o.am==='rep'&&at!=null){const old=out[at];
@@ -1220,7 +1220,7 @@ function conso8(g,o){
   const bump=(lab,row,s)=>{exp[lab]=(exp[lab]||0)+s;const a=expT[lab]=expT[lab]||N8.map(()=>0);N8.forEach((c,q)=>{if(typeof row[c]==='number')a[q]+=s*row[c];});};
   T8.forEach(([n,t,lab,am])=>{const rows=g.rows[n];if(!rows||(t===2&&!o.eco)||(am&&o.am==='off'))return;
     rows.forEach(x=>{const f=x.f.slice();
-      if(o.neg&&t===1&&/^cn$|credit/i.test(String(f[3])))N8.forEach(c=>{if(typeof f[c-1]==='number')f[c-1]=-f[c-1];});
+      if(o.neg&&t===1&&/^cn$|credit/i.test(String(f[3])))N8.forEach(c=>{if(typeof f[c-1]==='number'&&f[c-1])f[c-1]=-Math.abs(f[c-1]);});
       const row=[x.per,...f,'',lab];
       if(!am){const k=key(t,f[0],f[2],f[4],f[3]);if(idx[k]==null)idx[k]=out.length;const k2=key2(t,f[0],f[2],f[3]);if(idx2[k2]==null)idx2[k2]=out.length;out.push(row);bump(lab,row,1);return;}
       const ok=key(t,f[0],x.on,x.od,x.ot),at=idx[ok];
@@ -1256,7 +1256,7 @@ function chk8(g,o,c){
   add('Duplicates','Same section, GSTIN, number, date and type twice','',du.length,du.length?'CHECK - '+du.slice(0,4).join('; '):'OK - none');
   const no=out.filter(r=>/^no$/i.test(String(r[16]).trim()));add('ITC not available','Rows with ITC Availability = No (ITC considered is nil)','',no.length,'Info - tax on these rows: '+f2(no.reduce((s,r)=>s+TAXC.reduce((q,k)=>q+(+r[k]||0),0),0)).toLocaleString('en-IN'));
   const all=T8.reduce((s,[n,t,lab,am])=>{if(!g.rows[n]||(t===2&&!o.eco)||(am&&o.am==='off'))return s;
-    return s+g.rows[n].reduce((q,x)=>{const sg=o.neg&&t===1&&/^cn$|credit/i.test(String(x.f[3]))?-1:1;return q+sg*ITCC.reduce((z,k)=>z+(+x.f[k-1]||0),0);},0);},0);
+    return s+g.rows[n].reduce((q,x)=>{const cn=o.neg&&t===1&&/^cn$|credit/i.test(String(x.f[3]));return q+ITCC.reduce((z,k)=>{const v=+x.f[k-1]||0;return z+(cn?-Math.abs(v):v);},0);},0);},0);
   const itc=ITCC.reduce((s,k)=>s+out.reduce((q,r)=>q+(+r[k]||0),0),0),dif=f2(itc-all);
   add('ITC considered - every source row','Sum of the ITC columns over all rows of all sheets (how the portal builds the 8A summary)','',f2(all),Math.abs(dif)>0.05?(o.am==='rep'?'Info - the Conso total is '+dif.toLocaleString('en-IN')+' different from the sum of every source row, because replaced originals no longer count and the amended rows carry the ITC shown on them':'CHECK - the Conso total is '+dif.toLocaleString('en-IN')+' different from the sum of every source row - look at the amendment rows'):'OK - '+f2(all).toLocaleString('en-IN',{minimumFractionDigits:2}));add('Table 8A total','ITC considered (IGST + CGST + SGST + Cess) in the Conso','',f2(itc),'Info - '+f2(itc).toLocaleString('en-IN',{minimumFractionDigits:2}));
   return {R,bad,itc};}
