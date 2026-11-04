@@ -105,10 +105,10 @@ input.t{font:inherit;padding:8px 10px;border:1px solid var(--ln);border-radius:8
 <div class="card"><div class="sub" style="margin:0 0 4px"><b>Step 2 &middot; Select your GSTR-9 Table 8A file</b></div><p class="sub" style="margin:0 0 12px">Drop the 8A Excel file downloaded from the portal (named like R9_8A_GSTIN_1.xlsx), or a ZIP of several (one file per GSTIN). Everything is read inside your browser; no file is uploaded anywhere. You get one workbook per GSTIN.</p>
 <div id="drop8"><div style="font-size:16px"><b>Drag &amp; drop</b> the GSTR-9 8A .xlsx file(s) or a ZIP here</div><div class="row"><label class="btn pri">Choose files / ZIP<input id="g8" type="file" accept=".xlsx,.zip" multiple></label></div></div><div id="ptxt8" class="sub" style="margin:10px 0 0"></div></div>
 <div id="res8" class="hide"><div class="card"><div class="stats" id="stats8"></div><div style="margin:0 0 12px;padding:10px 12px;border:1px solid var(--ln);border-radius:8px"><b>8A Conso options</b>
-<label style="display:block;margin:6px 0 3px">Amendments (B2BA, B2B-CDNRA, ECOA): <select id="c8am"><option value="rep">replace the original row with the revised one, ITC considered as shown on the amended row + "Amendment replacements" log tab</option><option value="app">add as separate rows, keep the originals</option><option value="off">leave out</option></select></label>
+<label style="display:block;margin:6px 0 3px">Amendments (B2BA, B2B-CDNRA, ECOA): <select id="c8am"><option value="rep">replace the original row with the revised one: amended month, values and ITC only, no trace of the original</option><option value="app">add as separate rows, keep the originals</option><option value="off">leave out</option></select></label>
 <label style="display:block;margin:3px 0"><input type="checkbox" id="c8neg" checked> Credit notes: note value, taxable value, taxes and ITC considered negative</label><label style="display:block;margin:3px 0"><input type="checkbox" id="c8eco" checked> Include ECO (and ECOA)</label></div>
 <div class="row" id="dl8" style="justify-content:flex-start"></div><div id="msg8" class="sub" style="margin:10px 0 0"></div></div><div class="card"><div class="tw"><table id="tb8"></table></div></div></div>
-<p class="sub">The workbook has: <b>8A Conso</b> (every row of B2B, B2B-CDNR and ECO, then the amendments, with the GSTR-2B period as Month, the tax per portal and the "ITC considered for 8A" columns; the subtotal row follows the filter), <b>Amendment replacements</b> (old vs new values), <b>Month summary</b> (live formulas: ITC considered by GSTR-2B period and by section) and <b>Checks</b> (row and amount tie-out against the source sheets, documents dated outside the FY, duplicates, amendments that could not be matched).</p>
+<p class="sub">The workbook has: <b>8A Conso</b> (every row of B2B, B2B-CDNR and ECO, then the amendments, with the GSTR-2B period as Month, the tax per portal and the "ITC considered for 8A" columns; the subtotal row follows the filter), <b>Month summary</b> (live formulas: ITC considered by GSTR-2B period and by section) and <b>Checks</b> (row and amount tie-out against the source sheets, documents dated outside the FY, duplicates, amendments that could not be matched).</p>
 </div>
 <p class="sub" id="foot"></p>
 </main>
@@ -1225,9 +1225,7 @@ function conso8(g,o){
       if(!am){const k=key(t,f[0],f[2],f[4],f[3]);if(idx[k]==null)idx[k]=out.length;const k2=key2(t,f[0],f[2],f[3]);if(idx2[k2]==null)idx2[k2]=out.length;out.push(row);bump(lab,row,1);return;}
       const ok=key(t,f[0],x.on,x.od,x.ot),at=idx[ok];
       if(o.am==='rep'&&at!=null){const old=out[at];
-        const hadItc=[17,18,19,20].some(k=>Math.abs(+old[k]||0)>.004);
-        [3,4,5,6,7,8,9,10,11,12,13,16,17,18,19,20].forEach(k=>{const a=old[k],b=row[k],d=(typeof a==='number'||typeof b==='number')?Math.abs((+a||0)-(+b||0))>.004:String(a)!==String(b);if(d)log.push([6+at+1,row[1],x.on,old[0],H8[k-1],a,b]);});
-        bump(old[23],old,-1);if(hadItc)row[0]=old[0];row[22]='Amended in '+(x.per||'?')+' - original row replaced with the revised document; ITC considered as shown on the amended row';out[at]=row;bump(lab,row,1);st.rep++;
+        bump(old[23],old,-1);row[22]='Amended in '+(x.per||'?')+' - amended document (month, values and ITC as per the amended row)';out[at]=row;bump(lab,row,1);st.rep++;
         idx[key(t,f[0],f[2],f[4],f[3])]=at;return;}
       if(o.am==='rep'){const dm=idx2[key2(t,f[0],x.on,x.ot)]!=null;
         row[22]=dm?'Amended in '+x.per+' - revised row only; a document with the same number but a different date is in the file, so it was NOT replaced':'Amended in '+x.per+' - revised row only; original is not in this file, so nothing to replace';
@@ -1245,7 +1243,7 @@ function chk8(g,o,c){
     const d=N8.map((k,q)=>f2((secT[lab]||N8.map(()=>0))[q]-(c.expT[lab]||N8.map(()=>0))[q])),b=d.some(x=>Math.abs(x)>0.05);
     if(b)add('Totals - '+n,'Sum of every numeric column differs from the source sheet','','','CHECK - difference '+d.join(' / '));});
   add('Rows - all sheets','Conso rows = source rows - rows replaced by amendments',Object.values(g.rows).reduce((s,x)=>s+x.length,0),out.length,out.length===exp?'OK - '+out.length+' rows':'CHECK - expected '+exp);
-  if(o.am==='rep'){add('Amendments','Revised rows that replaced an original row','',c.st.rep,'Info - '+c.st.rep+' replaced (see "Amendment replacements" tab)');
+  if(o.am==='rep'){add('Amendments','Revised rows that replaced an original row','',c.st.rep,'Info - '+c.st.rep+' original row(s) replaced by the amended row (amended month, values and ITC kept)');
     if(c.st.dm.length)add('Amendments','Original number found but with a different date - NOT replaced, check manually','',c.st.dm.length,'CHECK - '+c.st.dm.slice(0,4).join('; ')+(c.st.dm.length>4?'; ...':''));
     if(c.st.noo.length)add('Amendments','Original not in this file - revised row shown alone','',c.st.noo.length,'Info - '+c.st.noo.slice(0,4).join('; ')+(c.st.noo.length>4?'; ...':''));}
   const y=parseInt(g.fy,10),a0=new Date(y,3,1),a1=new Date(y+1,2,31),oo=[];
@@ -1284,7 +1282,7 @@ function wb8(g,o){
   sr.push(tot(5,4+ms.length));
   const hr2=sr.length+1,sec=T8.map(x=>x[2]);sr.push([''],['Section-wise',...HS]);
   const s0=sr.length+1;sec.forEach((x,i)=>sr.push(line(23,s0+i,x)));
-  sr.push(tot(s0,s0+sec.length-1),[''],['Both tables read the "8A Conso" tab. A row replaced by an amendment is shown in the GSTR-2B month of the revised row, unless the original row had ITC considered, in which case it stays in the original\'s month.']);
+  sr.push(tot(s0,s0+sec.length-1),[''],['Both tables read the "8A Conso" tab. A row replaced by an amendment is shown in the GSTR-2B month of the amended row; nothing of the original is kept.']);
   sheets.push({name:'Month summary',rows:sr,wd:[24,10,18,18,18,18,16,18,20],freeze:4,heights:{3:34,[hr2]:34},style:(r,q,v)=>(r===3||r===hr2)?3:(q>=2&&r>3&&r!==hr2?6:5)});
   const cr=[['Check','Detail','Source','Output','Result'],['File','Source file '+g.file.name+' - GSTIN '+g.gstin+' - FY '+g.fy+' - '+g.legal,'','',[...g.file.issues,...g.file.warn].join('; ')||'OK'],...k.R];
   sheets.push({name:'Checks',rows:cr,wd:[34,70,12,12,120],freeze:1,filter:[0,cr.length-1],heights:{0:30},style:(r,q,v)=>r===0?3:(q===4&&!/^(OK|Info)/.test(v)?7:5)});
