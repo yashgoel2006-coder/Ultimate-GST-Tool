@@ -106,7 +106,7 @@ input.t{font:inherit;padding:8px 10px;border:1px solid var(--ln);border-radius:8
 <div class="card"><div class="sub" style="margin:0 0 4px"><b>Step 2 &middot; Select your GSTR-9 Table 8A file</b></div><p class="sub" style="margin:0 0 12px">Drop the 8A Excel file downloaded from the portal (named like R9_8A_GSTIN_1.xlsx), or a ZIP of several (one file per GSTIN). Everything is read inside your browser; no file is uploaded anywhere. You get one workbook per GSTIN.</p>
 <div id="drop8"><div style="font-size:16px"><b>Drag &amp; drop</b> the GSTR-9 8A .xlsx file(s) or a ZIP here</div><div class="row"><label class="btn pri">Choose files / ZIP<input id="g8" type="file" accept=".xlsx,.zip" multiple></label></div></div><div id="ptxt8" class="sub" style="margin:10px 0 0"></div></div>
 <div id="res8" class="hide"><div class="card"><div class="stats" id="stats8"></div><div style="margin:0 0 12px;padding:10px 12px;border:1px solid var(--ln);border-radius:8px"><b>8A Conso options</b>
-<label style="display:block;margin:6px 0 3px">Amendments (B2BA, B2B-CDNRA, ECOA): <select id="c8am"><option value="rep">replace the original row with the revised one: amended month, values and ITC only, no trace of the original</option><option value="app">add as separate rows, keep the originals</option><option value="off">leave out</option></select></label>
+<label style="display:block;margin:6px 0 3px">Amendments (B2BA, B2B-CDNRA, ECOA): <select id="c8am"><option value="rep">replace the original row with the revised one: amended month, values and ITC only, no trace of the original</option><option value="app" selected>add as separate rows, keep the originals</option><option value="off">leave out</option></select></label>
 <label style="display:block;margin:3px 0"><input type="checkbox" id="c8neg" checked> Credit notes: note value, taxable value, taxes and ITC considered negative</label><label style="display:block;margin:3px 0"><input type="checkbox" id="c8eco" checked> Include ECO (and ECOA)</label></div>
 <div class="row" id="dl8" style="justify-content:flex-start"></div><div id="msg8" class="sub" style="margin:10px 0 0"></div></div><div class="card"><div class="tw"><table id="tb8"></table></div></div></div>
 <p class="sub">The workbook has: <b>8A Conso</b> (every row of B2B, B2B-CDNR and ECO, then the amendments, with the GSTR-2B period as Month, the tax per portal and the "ITC considered for 8A" columns; the subtotal row follows the filter), <b>Month summary</b> (live formulas: ITC considered by GSTR-2B period and by section) and <b>Checks</b> (row and amount tie-out against the source sheets, documents dated outside the FY, duplicates, amendments that could not be matched).</p>
@@ -1310,7 +1310,7 @@ function monthRows8(out){const m={};out.forEach(r=>{if(r[0]!=='')m[r[0]]=1;});re
 function wb8(g,o){
   const c=conso8(g,o),k=chk8(g,o,c),miss8=new Set(),out=(()=>{const o2=c.out.slice(),have=new Set(o2.map(r=>r[0])),y=parseInt(g.fy,10);if(!y)return o2;
     const MN3=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    for(let i=0;i<12;i++){const mi=(i+3)%12,yy=mi>=3?y:y+1,lab=MN3[mi]+'-'+String(yy%100).padStart(2,'0');if(!have.has(lab)){miss8.add(lab);o2.push([lab,...Array(23).fill('RM')]);}}
+    for(let i=0;i<12;i++){const mi=(i+3)%12,yy=mi>=3?y:y+1,lab=MN3[mi]+'-'+String(yy%100).padStart(2,'0');}
     return o2;})(),n=out.length,L=6+Math.max(n,1),sub=q=>({f:'SUBTOTAL(9,'+colL(q)+'7:'+colL(q)+L+')'});
   const sheets=[],ref=q=>"'8A Conso'!$"+colL(q)+'$7:$'+colL(q)+'$'+L;
   const hd=['Month (GSTR-2B period)',...H8,'Amendment status','Section'],srow=['Subtotal (follows filter)',...hd.slice(1).map((x,i)=>NS8.has(i+1)?sub(i+1):'')];
@@ -1328,7 +1328,7 @@ function wb8(g,o){
     line=(col,r,lab)=>[lab,cnt(col,r),sm(col,9,r),...ITCC.map(q=>sm(col,q,r)),{f:'SUM(D'+r+':G'+r+')'},nt(col,r)],
     tot=(r1,r2)=>['Total',...['B','C','D','E','F','G','H','I'].map(x=>({f:r2>=r1?'SUM('+x+r1+':'+x+r2+')':'0'}))];
   const sr=[['GSTR-9 Table 8A - ITC considered, month-wise (GSTR-2B period)'],['GSTIN '+g.gstin+' - FY '+g.fy],[''],['GSTR-2B period',...HS]];
-  ms.forEach((m,i)=>sr.push(miss8.has(m)?[m,...Array(8).fill('RM')]:line(0,5+i,m)));
+  ms.forEach((m,i)=>sr.push(line(0,5+i,m)));
   sr.push(tot(5,4+ms.length));
   const hr2=sr.length+1,sec=T8.map(x=>x[2]);sr.push([''],['Section-wise',...HS]);
   const s0=sr.length+1;sec.forEach((x,i)=>sr.push(line(23,s0+i,x)));
