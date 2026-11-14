@@ -93,14 +93,14 @@ input.t{font:inherit;padding:8px 10px;border:1px solid var(--ln);border-radius:8
 <p class="sub">Differences are shown as GSTR-9 minus the other return, so a positive figure means GSTR-9 is higher. Any difference of more than ₹1 is highlighted in the Excel. The Notes sheet in the workbook lists the files read and how each row was mapped.</p>
 </div>
 <div id="p2b" class="hide">
-<div class="card"><div class="sub" style="margin:0 0 4px"><b>Step 2 · Select your GSTR-2B files</b></div><p class="sub" style="margin:0 0 12px">Drop the monthly GSTR-2B Excel files downloaded from the portal (named like 042025_GSTIN_GSTR2B_….xlsx), or a ZIP of them. Everything is read inside your browser; no file is uploaded anywhere. You get one workbook per GSTIN.</p>
+<div class="card"><div class="sub" style="margin:0 0 4px"><b>Step 2 · Select your GSTR-2B files</b></div><p class="sub" style="margin:0 0 12px">Drop the monthly GSTR-2B Excel files downloaded from the portal (named like 042025_GSTIN_GSTR2B_….xlsx), or a ZIP of them. If the portal gave you a month in several parts (…_1.xlsx, …_2.xlsx, …_3.xlsx) drop all the parts: they are joined month by month, in part order. Also drop the month's GSTR-2B Summary file (…_summary.xlsx) if you have it, so the totals can be tied to the portal. Everything is read inside your browser; no file is uploaded anywhere. You get one workbook per GSTIN.</p>
 <div id="drop2"><div style="font-size:16px"><b>Drag &amp; drop</b> GSTR-2B .xlsx files or a ZIP here</div><div class="row"><label class="btn pri">Choose files / ZIP<input id="gb" type="file" accept=".xlsx,.zip" multiple></label></div></div><div id="ptxt2" class="sub" style="margin:10px 0 0"></div></div>
-<div id="res2" class="hide"><div class="card"><div class="stats" id="stats2"></div><div id="c2box" style="margin:0 0 12px;padding:10px 12px;border:1px solid var(--ln);border-radius:8px"><label style="display:block"><input type="checkbox" id="c2on"> <b>Also add a "2B Conso" tab</b> - one flat register: B2B, credit/debit notes, ECO, ISD, imports, then amendments. Months stay in order, same columns as the B2B sheet, subtotal row follows the filter. Leave unticked for the usual one-tab-per-sheet workbook.</label>
+<div id="res2" class="hide"><div class="card"><div class="stats" id="stats2"></div><div id="tn2" class="sub" style="margin:0 0 12px"></div><div id="c2box" style="margin:0 0 12px;padding:10px 12px;border:1px solid var(--ln);border-radius:8px"><label style="display:block"><input type="checkbox" id="c2on"> <b>Also add a "2B Conso" tab</b> - one flat register: B2B, credit/debit notes, ECO, ISD, imports, then amendments. Months stay in order, same columns as the B2B sheet, subtotal row follows the filter. Leave unticked for the usual one-tab-per-sheet workbook.</label>
 <div id="c2sub" style="margin:8px 0 0 22px;opacity:.5"><label style="display:block;margin:3px 0">Amendments (B2BA, B2B-CDNRA, ECOA, ISDA, IMPGA): <select id="c2am"><option value="rep">replace the original row if it is in the files, else add the revised row (+ "Amendment replacements" log tab)</option><option value="app">add as separate rows, keep the originals</option><option value="off">leave out</option></select></label>
 <label style="display:block;margin:3px 0"><input type="checkbox" id="c2neg" checked> Credit notes (and ISD credit notes): note value, taxable value and taxes negative</label>
 <label style="display:block;margin:3px 0"><input type="checkbox" id="c2eco" checked> Include ECO</label><label style="display:block;margin:3px 0"><input type="checkbox" id="c2isd" checked> Include ISD</label><label style="display:block;margin:3px 0"><input type="checkbox" id="c2imp" checked> Include imports (IMPG, IMPGSEZ)</label></div></div>
 <div class="row" id="dl2" style="justify-content:flex-start"></div><div id="msg2" class="sub" style="margin:10px 0 0"></div></div><div class="card"><div class="tw"><table id="tb2"></table></div></div></div>
-<p class="sub">Every sheet from B2B to the right in the portal file (B2B, B2BA, B2B-CDNR, B2B-CDNRA, ECO, ISD, IMPG, ITC Reversal, Rejected sheets, etc.) becomes its own tab, with all months stacked one below the other and a Month column added (e.g. May-25). Figures are copied exactly as in the portal file and no column is dropped (where the portal changed a sheet's columns during the year, columns are matched by heading). The tabs use the GST portal's look. Extra tabs: Checks, Completeness (every non-empty source cell and column heading checked month by month in each sheet) and Tie-out (each month's sheet totals against the 2B's own ITC summary). A month with no file between the first and last file is added as an RM row (return missing) in every tab and in 2B Conso.</p>
+<p class="sub">Every sheet from B2B to the right in the portal file (B2B, B2BA, B2B-CDNR, B2B-CDNRA, ECO, ISD, IMPG, ITC Reversal, Rejected sheets, etc.) becomes its own tab, with all months stacked one below the other and a Month column added (e.g. May-25). Figures are copied exactly as in the portal file and no column is dropped (where the portal changed a sheet's columns during the year, columns are matched by heading). The tabs use the GST portal's look. Extra tabs: Checks, Completeness (every non-empty source cell and column heading checked month by month in each sheet) and Tie-out (each month's sheet totals against the 2B's own ITC summary). When a month comes in several parts the parts are stacked in part order; a missing part number and a document repeated in two parts are flagged, and identical extra copies of a file (e.g. "summary (1).xlsx") are ignored. The Tie-out tab compares each month's sheet totals (all parts together) with that month's summary file. A month with no file between the first and last file is added as an RM row (return missing) in every tab and in 2B Conso.</p>
 </div>
 <div id="p8a" class="hide">
 <div class="card"><div class="sub" style="margin:0 0 4px"><b>Step 2 &middot; Select your GSTR-9 Table 8A file</b></div><p class="sub" style="margin:0 0 12px">Drop the 8A Excel file downloaded from the portal (named like R9_8A_GSTIN_1.xlsx), or a ZIP of several (one file per GSTIN). Everything is read inside your browser; no file is uploaded anywhere. You get one workbook per GSTIN.</p>
@@ -1019,13 +1019,14 @@ function align(pieces){
 // ---- tie-out against the 2B's own ITC summary sheets ----
 const kcol=(p,re)=>p?p.fk.findIndex(k=>re.test(k)):-1;
 const taxcols=p=>H4.map(h=>p.fk.findIndex(k=>k.endsWith(h)&&k.indexOf('Amount declared')<0&&k.indexOf('Original')<0));
-function ssum(p,f,ab){const t=[0,0,0,0];if(!p)return t;const c=taxcols(p),dt=kcol(p,/(Note type|Document type)$/);
-  p.d.forEach(x=>{const ty=dt<0?'':String(x.c[dt]||'').toLowerCase();if(f&&!f(ty))return;c.forEach((j,i)=>{if(j>=0&&typeof x.c[j]==='number')t[i]+=ab?Math.abs(x.c[j]):x.c[j];});});return t;}
+function ssum(P,f,ab){const t=[0,0,0,0];if(!P)return t;(Array.isArray(P)?P:[P]).forEach(p=>{if(!p)return;const c=taxcols(p),dt=kcol(p,/(Note type|Document type)$/);
+  p.d.forEach(x=>{const ty=dt<0?'':String(x.c[dt]||'').toLowerCase();if(f&&!f(ty))return;c.forEach((j,i)=>{if(j>=0&&typeof x.c[j]==='number')t[i]+=ab?Math.abs(x.c[j]):x.c[j];});});});return t;}
 function summ(R){const o={};if(!R)return o;R.slice(6).forEach(r=>{const lab=typeof r[1]==='string'?r[1].trim():'';if(lab&&(r[0]==='Details'||r[0]==null)){const a=o[lab]=o[lab]||[0,0,0,0];for(let i=0;i<4;i++)a[i]+=typeof r[3+i]==='number'?r[3+i]:0;}});return o;}
 const sline=(S,pre,am)=>{const t=[0,0,0,0];for(const l in S)if(l.startsWith(pre)&&(l.indexOf('Amendment')>=0)===!!am)for(let i=0;i<4;i++)t[i]+=S[l][i];return t;};
 const add4=(a,b)=>a.map((x,i)=>x+b[i]);
-function tieout(wb,P,o){
-  const A=summ(sx(wb,'ITC Available')),NA=summ(sx(wb,'ITC not available')),RV=summ(sx(wb,'ITC Reversal')),RJ=summ(sx(wb,'ITC Rejected'));
+// S = the four ITC summary sheets read by readS(); P = sheet name -> array of pieces (one per part file of the month)
+function tieout(S,P,o){
+  const A=S.A,NA=S.NA,RV=S.RV,RJ=S.RJ;
   const sm=(pre,...ss)=>ss.reduce((t,s)=>add4(t,sline(s,pre)),[0,0,0,0]),deb=t=>t.indexOf('debit')>=0,cre=t=>t.indexOf('credit')>=0;
   const bk=[
    ['Invoices (B2B + B2B ITC Reversal)',add4(ssum(P['B2B']),ssum(P['B2B (ITC Reversal)'])),sm('B2B - Invoices',A,NA,RV)],
@@ -1047,32 +1048,42 @@ function tieout(wb,P,o){
     if(bad||sh.some(x=>x)||su.some(x=>x))o.tie.push({nm,sh,su,d,bad});
     if(bad)o.issues.push('Does not tie to the 2B summary - '+nm+': '+d.map((x,i)=>Math.abs(x)>0.05?HN[i]+' sheet '+f2(sh[i])+' vs portal '+f2(su[i]):'').filter(Boolean).join('; '));});
   // amendments: the summary shows the net effect (not comparable to the gross rows), but amended rows must exist if the summary has amounts
-  const am=add4(add4(sline(A,'',1),sline(NA,'',1)),[0,0,0,0]),amRows=['B2BA','B2B-CDNRA','ECOA','ISDA','IMPGA','IMPGSEZA'].reduce((s,n)=>s+(P[n]?P[n].d.length:0),0);
+  const am=add4(add4(sline(A,'',1),sline(NA,'',1)),[0,0,0,0]),amRows=['B2BA','B2B-CDNRA','ECOA','ISDA','IMPGA','IMPGSEZA'].reduce((s,n)=>s+(P[n]?P[n].reduce((q,p)=>q+p.d.length,0):0),0);
   if(!amRows&&am.some(x=>Math.abs(x)>0.005))o.issues.push('The 2B summary shows amendments ('+am.map((x,i)=>HN[i]+' '+f2(x)).join(', ')+') but the amendment sheets have no rows');}
 function taxable(p,sign){if(!p)return 0;const j=kcol(p,/Taxable Value \(\u20B9\)$/),dt=kcol(p,/(Note type|Document type)$/);
   return p.d.reduce((s,x)=>{const v=typeof x.c[j]==='number'?x.c[j]:0;return s+(sign&&dt>=0&&/credit/i.test(String(x.c[dt]))?-Math.abs(v):v);},0);}
-function dupcheck(p,cat,o){if(!p)return;const g=kcol(p,/GSTIN of supplier$/),no=kcol(p,/(invoice number|note number)$/i),dd=kcol(p,/(invoice date|note date)$/i),dt=kcol(p,/(Note type|Document type)$/),seen={};
-  p.d.forEach(x=>{const q=[dt<0?cat:x.c[dt],x.c[g],x.c[no],x.c[dd]].join('|');if(seen[q])o.issues.push('Duplicate document '+x.c[no]+' ('+x.c[g]+')');seen[q]=1;});}
+// items = [{p:piece,r:file}] of ONE month (all its part files), so a document repeated in two parts is caught too
+function dupcheck(items,cat,o){const seen={};
+  items.forEach(({p,r})=>{if(!p)return;const g=kcol(p,/GSTIN of supplier$/),no=kcol(p,/(invoice number|note number)$/i),dd=kcol(p,/(invoice date|note date)$/i),dt=kcol(p,/(Note type|Document type)$/),rt=kcol(p,/Rate\s*\(%\)$/i);
+    p.d.forEach(x=>{const q=[dt<0?cat:x.c[dt],x.c[g],x.c[no],x.c[dd],rt<0?'':x.c[rt]].join('|');if(seen[q]){const o2=seen[q];o.issues.push('Duplicate document '+x.c[no]+' ('+x.c[g]+')'+(o2!==r&&(o2.part||r.part)?' - in parts '+o2.part+' and '+r.part:''));}else seen[q]=r;});});}
 // Excel error cells (#N/A, #REF! ...) are read as blanks by the reader library, so they are turned into visible text first and reported
 const BERR={0:'#NULL!',7:'#DIV/0!',15:'#VALUE!',23:'#REF!',29:'#NAME?',36:'#NUM!',42:'#N/A',255:'#GETTING_DATA'};
 function errfix(ws,n,o){if(!ws)return;let k=0,mr=-1,mc=-1;for(const a in ws){if(a.charAt(0)==='!')continue;const c=ws[a];if(c&&c.t==='e'){c.t='s';c.v=c.w||BERR[c.v]||'#ERROR';c.w=c.v;k++;}try{const p=XLSX.utils.decode_cell(a);if(p.r>mr)mr=p.r;if(p.c>mc)mc=p.c;}catch(e){}}
   /* some portal files carry a wrong <dimension> (e.g. A1:V6 for 255 rows) - widen the range to the cells really present */
   if(ws['!ref']&&mr>=0){const r=XLSX.utils.decode_range(ws['!ref']);if(mr>r.e.r||mc>r.e.c){r.e.r=Math.max(r.e.r,mr);r.e.c=Math.max(r.e.c,mc);ws['!ref']=XLSX.utils.encode_range(r);}}
   if(k)o.warn.push(k+' Excel error cell(s) such as #N/A in sheet '+n+' were copied as text - check them');}
+function readS(wb){const g=n=>wb.Sheets[n]?summ(sx(wb,n)):{};return {A:g('ITC Available'),NA:g('ITC not available'),RV:g('ITC Reversal'),RJ:g('ITC Rejected')};}
+// The portal splits a big month into several downloads (..._GSTR2B_<date>_1.xlsx, _2, _3) and gives the ITC summary as a separate "..._summary.xlsx".
+// Sheets that follow a part's cover sheets are data sheets, whatever the first one is (a part may start with B2B-CDNR, ISD ...).
+const SKIPS=/^(read me|itc available|itc not available|itc reversal|itc rejected)$/i,CAN=['B2B','B2BA','B2B-CDNR','B2B-CDNRA','ECO','ECOA','ISD','ISDA','IMPG','IMPGA','IMPGSEZ','IMPGSEZA'];
+function addSheet(g,n,prev){if(g.p[n])return;const rk=CAN.indexOf(n);let at;
+  if(rk>=0){at=0;g.order.forEach((x,i)=>{const rx=CAN.indexOf(x);if(rx>=0&&rx<rk)at=i+1;});}else{const i=prev?g.order.indexOf(prev):-1;at=i+1;}
+  g.order.splice(at,0,n);g.p[n]=[];}
 function parse2b(buf,name){
-  const m=name.match(/(\d{2})(\d{4})_([0-9A-Z]{15})_GSTR2B/i),o={name,issues:[],warn:[],p:{},order:[],cnt:{},tie:[],netv:0};
+  const m=name.match(/(\d{2})(\d{4})_([0-9A-Z]{15})_GSTR2B/i),o={name,issues:[],warn:[],p:{},order:[],cnt:{},netv:0};
+  const stem=name.replace(/\.xlsx$/i,'').replace(/\s*\(\d+\)$/,''),pm=stem.match(/_(\d{1,3})$/);o.part=pm?+pm[1]:null;
   if(m){o.mm=+m[1];o.yy=+m[2];o.gstin=m[3].toUpperCase();if(o.mm<1||o.mm>12){o.issues.push('Month in file name is invalid');o.mm=0;}
     if(/GSTR2BQ/i.test(name)&&o.mm){const qq=[3,6,9,12].indexOf(o.mm);if(qq<0)o.issues.push('Quarterly 2B file name must carry the last month of the quarter (03, 06, 09 or 12)');else o.q=['Jan-Mar','Apr-Jun','Jul-Sep','Oct-Dec'][qq];}}else o.issues.push('File name is not in MMYYYY_GSTIN_GSTR2B format');
   let wb;try{wb=XLSX.read(buf,{type:'array'});}catch(e){o.issues.push('Could not read workbook: '+e.message);return o;}
   const lab=o.mm?mlab(o):'?',SN=wb.SheetNames,bi=SN.indexOf('B2B');
-  if(bi<0){o.issues.push(SN.indexOf('ITC Available')>=0?'B2B sheet not found - this is a summary-only 2B file (no invoice-level sheets). Download the full GSTR-2B Excel from the portal':'B2B sheet not found');return o;}
-  // every sheet from B2B to the right, each kept as its own tab
-  SN.slice(bi).forEach(n=>{errfix(wb.Sheets[n],n,o);const R=sx(wb,n);if(!R)return;const hl=hdrEnd(R);
+  if(SN.indexOf('ITC Available')>=0){try{o.S=readS(wb);}catch(e){o.warn.push('Could not read the ITC summary sheets: '+e.message);}}
+  const ds=bi>=0?SN.slice(bi):SN.filter(n=>!SKIPS.test(n));
+  if(!ds.length){if(o.S){o.sumOnly=true;return o;}o.issues.push('No GSTR-2B data sheets found');return o;}
+  // every data sheet of this file, each kept as its own tab
+  ds.forEach(n=>{errfix(wb.Sheets[n],n,o);const R=sx(wb,n);if(!R)return;const hl=hdrEnd(R);
     if(hl<0){o.issues.push('Sheet '+n+' not read - header row not found');return;}
     o.p[n]=mkpiece(R,hl,lab,o,n,wb.Sheets[n]['!merges']);o.order.push(n);o.cnt[n]=o.p[n].d.length;});
   o.netv=taxable(o.p['B2B'],false)+taxable(o.p['B2B-CDNR'],true);
-  dupcheck(o.p['B2B'],'B2B',o);dupcheck(o.p['B2B-CDNR'],'Note',o);
-  try{tieout(wb,o.p,o);}catch(e){o.warn.push('Could not tie to the 2B summary: '+e.message);}
   return o;}
 let G2={};
 async function run2(files){
@@ -1083,37 +1094,60 @@ async function run2(files){
   if(!items.length){T.textContent='No .xlsx files found.';return;}
   const rs=[];for(let i=0;i<items.length;i++){T.textContent='Reading file '+(i+1)+' of '+items.length;await new Promise(r=>setTimeout(r));rs.push(parse2b(items[i].buf,items[i].name));}
   T.textContent='Done';G2={};
-  rs.sort((a,b)=>(a.gstin||'').localeCompare(b.gstin||'')||(a.yy*12+a.mm)-(b.yy*12+b.mm));
-  rs.forEach(r=>{if(r.gstin){const g=G2[r.gstin]=G2[r.gstin]||{rs:[],p:{},order:[]};g.rs.push(r);}});
-  for(const k in G2){const g=G2[k],seen={},sigM={};
-    g.rs.forEach(r=>{if(!r.mm)return;const kk=r.yy*12+r.mm;
-      const sg=r.issues.length?null:r.order.map(n=>n+'\u0001'+JSON.stringify(r.p[n].d)).join('\u0002');
-      if(sg&&sigM[kk]&&sigM[kk].sg===sg){r.dupSkip=true;r.warn.push('Identical copy of '+sigM[kk].name+' - ignored, counted once');return;}
-      if(sg&&!sigM[kk])sigM[kk]={sg,name:r.name};
-      if(r.q?[kk-2,kk-1,kk].some(x=>seen[x]):seen[kk])r.issues.push('Duplicate month - another file for '+mlab(r)+' (or an overlapping period) was also dropped in');if(r.q)[kk-2,kk-1,kk].forEach(x=>seen[x]=1);else seen[kk]=1;
-      r.order.forEach(n=>{if(!g.p[n]){g.p[n]=[];g.order.push(n);}g.p[n].push(r.p[n]);});});
-    g.rs=g.rs.filter(r=>!r.dupSkip);
-    // completeness, month by month in every sheet: each month's non-empty source cells and column headings must all be in the output
+  rs.sort((a,b)=>(a.gstin||'').localeCompare(b.gstin||'')||(a.yy*12+a.mm)-(b.yy*12+b.mm)||(a.part||0)-(b.part||0)||a.name.localeCompare(b.name));
+  const byG={};rs.forEach(r=>{if(r.gstin)(byG[r.gstin]=byG[r.gstin]||[]).push(r);});
+  for(const k in byG){const all=byG[k];
+    if(!all.some(r=>!r.sumOnly)){all.forEach(r=>r.warn.push('Only a summary file was given for this GSTIN - no GSTR-2B data to consolidate'));continue;}
+    const g=G2[k]={rs:[],p:{},order:[],ties:[],noTie:[],nm:0},seen={},M={};
+    // 1) group the files of one GSTIN by month: all parts of a month are joined, in part order
+    all.forEach(r=>{if(!r.mm)return;const kk=r.yy*12+r.mm,mo=M[kk]=M[kk]||{files:[],sums:[],sgs:[]};
+      if(r.sumOnly){mo.sums.push(r);return;}
+      const sg=r.issues.length?null:r.order.map(n=>n+'\u0001'+JSON.stringify(r.p[n].d)).join('\u0002'),same=sg&&mo.sgs.find(x=>x.sg===sg&&x.r.part===r.part);
+      if(same){r.dupSkip=true;r.warn.push('Identical copy of '+same.r.name+' - ignored, counted once');return;}
+      if(sg)mo.sgs.push({sg,r});
+      const ks=r.q?[kk-2,kk-1,kk]:[kk],pt=r.part||0;
+      if(ks.some(x=>seen[x]&&(!pt||seen[x].un||seen[x].parts[pt])))r.issues.push('Duplicate month - another file for '+mlab(r)+(pt?' (part '+pt+')':'')+' (or an overlapping period) was also dropped in');
+      ks.forEach(x=>{const e=seen[x]=seen[x]||{un:0,parts:{}};if(pt)e.parts[pt]=1;else e.un=1;});
+      r.inG=true;mo.files.push(r);
+      r.order.forEach((n,i)=>{addSheet(g,n,r.order[i-1]);g.p[n].push(r.p[n]);});});
+    Object.keys(M).forEach(kk=>M[kk].sgs=null);
+    g.rs=all.filter(r=>!r.sumOnly&&!r.dupSkip);g.sumFiles=all.filter(r=>r.sumOnly);
+    // 2) per-month checks: missing parts, documents repeated across parts, tie-out against the month's summary file
+    Object.keys(M).forEach(kk=>{const mo=M[kk],f0=mo.files[0];
+      if(!f0){mo.sums.forEach(r=>r.warn.push('No GSTR-2B data files for this month - nothing to tie this summary to'));return;}
+      g.nm++;const lb=mlab(f0),ps=mo.files.filter(r=>r.part).map(r=>r.part);
+      if(ps.length){const mx=Math.max(...ps),ms=[];for(let i=1;i<=mx;i++)if(ps.indexOf(i)<0)ms.push(i);if(ms.length)f0.issues.push('Part '+ms.join(', ')+' of '+lb+' not provided (got part '+ps.join(', ')+') - rows are missing');}
+      dupcheck(mo.files.map(r=>({p:r.p['B2B'],r})),'B2B',f0);dupcheck(mo.files.map(r=>({p:r.p['B2B-CDNR'],r})),'Note',f0);
+      let S=null,src=null;
+      [...mo.sums,...mo.files.filter(r=>r.S)].forEach(r=>{const js=JSON.stringify(r.S);if(!S){S=r.S;src=r;r.js=js;}else if(js===src.js){if(r.sumOnly)r.warn.push('Same figures as '+src.name+' - ignored');}else r.warn.push('Summary differs from '+src.name+' - that one is used for the tie-out');});
+      if(S){const P={},rec={tie:[],issues:[]};mo.files.forEach(r=>r.order.forEach(n=>(P[n]=P[n]||[]).push(r.p[n])));
+        try{tieout(S,P,rec);f0.issues.push(...rec.issues);g.ties.push({lab:lb,src:src.name,n:mo.files.length,tie:rec.tie});}catch(e){f0.warn.push('Could not tie to the 2B summary: '+e.message);}}
+      else g.noTie.push(lb);});
+    // completeness, month by month in every sheet (all parts of a month together): each month's non-empty source cells and column headings must all be in the output
     g.comp={sheets:g.order.length,cells:0,checks:0,fail:[],rows:[['Sheet','Month','Source cells','Output cells','Status']]};
-    g.order.forEach(n=>{const a=align(g.p[n]),oc={},ec={};
+    g.order.forEach(n=>{const a=align(g.p[n]),oc={},ec={},lost={},first={};
       for(let i=a.hdr[1]+1;i<a.rows.length;i++){const row=a.rows[i];for(let j=1;j<row.length;j++)if(row[j]!==''&&row[j]!=null)oc[row[0]]=(oc[row[0]]||0)+1;}
-      g.rs.forEach(r=>{const p=r.p[n];if(p)ec[p.lab]=(ec[p.lab]||0)+p.cells;});
-      g.rs.forEach(r=>{const p=r.p[n];if(!p)return;const lost=p.fk.filter(k=>a.keys.indexOf(k)<0),ok=(oc[p.lab]||0)===ec[p.lab]&&!lost.length;
-        g.comp.cells+=p.cells;g.comp.checks++;g.comp.rows.push([n,p.lab,ec[p.lab],oc[p.lab]||0,ok?'OK':'MISSING']);
-        if(!ok){const t=n+' ('+p.lab+'): source '+ec[p.lab]+' cells, output '+(oc[p.lab]||0)+(lost.length?'; columns missing: '+lost.slice(0,3).join(', '):'');g.comp.fail.push(t);r.issues.push('Completeness check FAILED - '+t);}});});
-    const ks=Object.keys(seen).map(Number),miss=[];g.missO=[];const f0=Math.min(...ks),m0=f0%12||12,y0=Math.floor((f0-1)/12),fy0=m0>=4?y0:y0-1;for(let q=fy0*12+4;q<=fy0*12+15;q++)if(!seen[q]){const lb=MN[(q-1)%12].slice(0,3)+'-'+String(Math.floor((q-1)/12)%100).padStart(2,'0');miss.push(lb);g.missO.push({k:q,lab:lb});}
-    if(miss.length&&g.rs[0])g.rs[0].warn.push('Months with no file in the financial year: '+miss.join(', '));
-    const f=Math.min(...ks);const m=f%12||12,yy=Math.floor((f-1)/12);const fy=m>=4?yy:yy-1;g.fy=fy+'-'+String((fy+1)%100).padStart(2,'0');}
+      g.rs.forEach(r=>{const p=r.p[n];if(!p||!r.inG)return;ec[p.lab]=(ec[p.lab]||0)+p.cells;(lost[p.lab]=lost[p.lab]||[]).push(...p.fk.filter(x=>a.keys.indexOf(x)<0));if(!first[p.lab])first[p.lab]=r;});
+      Object.keys(ec).forEach(lb=>{const ok=(oc[lb]||0)===ec[lb]&&!lost[lb].length;
+        g.comp.cells+=ec[lb];g.comp.checks++;g.comp.rows.push([n,lb,ec[lb],oc[lb]||0,ok?'OK':'MISSING']);
+        if(!ok){const t=n+' ('+lb+'): source '+ec[lb]+' cells, output '+(oc[lb]||0)+(lost[lb].length?'; columns missing: '+lost[lb].slice(0,3).join(', '):'');g.comp.fail.push(t);first[lb].issues.push('Completeness check FAILED - '+t);}});});
+    const ks=Object.keys(seen).map(Number),miss=[];g.missO=[];g.fy='';
+    if(ks.length){const f0=Math.min(...ks),m0=f0%12||12,y0=Math.floor((f0-1)/12),fy0=m0>=4?y0:y0-1;for(let q=fy0*12+4;q<=fy0*12+15;q++)if(!seen[q]){const lb=MN[(q-1)%12].slice(0,3)+'-'+String(Math.floor((q-1)/12)%100).padStart(2,'0');miss.push(lb);g.missO.push({k:q,lab:lb});}
+      if(miss.length&&g.rs[0])g.rs[0].warn.push('Months with no file in the financial year: '+miss.join(', '));
+      const f=Math.min(...ks);const m=f%12||12,yy=Math.floor((f-1)/12);const fy=m>=4?yy:yy-1;g.fy=fy+'-'+String((fy+1)%100).padStart(2,'0');}}
   rs.forEach(r=>{if(!r.gstin&&!r.issues.length)r.issues.push('No GSTIN');});
   render2(rs);}
 const nrows=r=>Object.keys(r.cnt).reduce((s,n)=>s+r.cnt[n],0);
 const cn=(r,n)=>r.cnt[n]||0,nother=r=>nrows(r)-cn(r,'B2B')-cn(r,'B2B-CDNR')-cn(r,'B2BA')-cn(r,'ISD');
 function render2(rs){
-  const bad=rs.filter(r=>r.issues.length).length,warn=rs.filter(r=>!r.issues.length&&r.warn.length).length,rows=rs.reduce((s,r)=>s+nrows(r),0);
-  $('stats2').innerHTML=`<div><b>${rs.length}</b><span>files read</span></div><div><b>${Object.keys(G2).length}</b><span>GSTIN(s)</span></div><div><b>${rows}</b><span>rows consolidated</span></div><div><b class="${warn?'wn':''}">${warn}</b><span>with a note</span></div><div><b class="${bad?'er':'ok'}">${bad}</b><span>need checking</span></div>`;
-  $('tb2').innerHTML='<tr>'+['File','Month','B2B','B2B-CDNR','B2BA','ISD','Other sheets','Net taxable value','Checks'].map(x=>`<th>${x}</th>`).join('')+'</tr>'+rs.map(r=>{const c=[...r.issues,...r.warn].join('; ')||'OK',cl=r.issues.length?'er':(r.warn.length?'wn':'ok');
-    return `<tr><td>${r.name}</td><td>${mlab(r)}</td><td class="n">${cn(r,'B2B')}</td><td class="n">${cn(r,'B2B-CDNR')}</td><td class="n">${cn(r,'B2BA')}</td><td class="n">${cn(r,'ISD')}</td><td class="n">${nother(r)}</td><td class="n">${fmt(r.netv)}</td><td class="${cl}">${c}</td></tr>`;}).join('');
-  $('dl2').innerHTML=Object.keys(G2).map(k=>`<button class="pri" data-g="${k}">Download Excel - ${k} (${G2[k].rs.length} months)</button>`).join('');
+  const bad=rs.filter(r=>r.issues.length).length,warn=rs.filter(r=>!r.issues.length&&r.warn.length).length,rows=rs.reduce((s,r)=>s+nrows(r),0),nm=Object.keys(G2).reduce((s,k)=>s+G2[k].nm,0);
+  $('stats2').innerHTML=`<div><b>${rs.length}</b><span>files read</span></div><div><b>${Object.keys(G2).length}</b><span>GSTIN(s)</span></div><div><b>${nm}</b><span>month(s)</span></div><div><b>${rows}</b><span>rows consolidated</span></div><div><b class="${warn?'wn':''}">${warn}</b><span>with a note</span></div><div><b class="${bad?'er':'ok'}">${bad}</b><span>need checking</span></div>`;
+  const tied=Object.keys(G2).reduce((s,k)=>s+G2[k].ties.length,0),nt=Object.keys(G2).reduce((s,k)=>s+G2[k].noTie.length,0);
+  $('tn2').innerHTML=`Tie-out to the portal's ITC summary: <b>${tied}</b> of ${nm} month(s) checked (all parts of a month are added together).`+(nt?` For the other ${nt} month(s) add the <b>GSTR-2B Summary</b> file (the "…_summary.xlsx" from the portal's offline download page) to tie them as well.`:'');
+  $('tb2').innerHTML='<tr>'+['File','Part','Month','B2B','B2B-CDNR','B2BA','ISD','Other sheets','Net taxable value','Checks'].map(x=>`<th>${x}</th>`).join('')+'</tr>'+rs.map(r=>{const c=[...r.issues,...r.warn].join('; ')||'OK',cl=r.issues.length?'er':(r.warn.length?'wn':'ok');
+    if(r.sumOnly)return `<tr><td>${r.name}</td><td>Summary</td><td>${mlab(r)}</td><td></td><td></td><td></td><td></td><td></td><td></td><td class="${cl}">${c==='OK'?'OK - ITC summary, used for the tie-out':c}</td></tr>`;
+    return `<tr><td>${r.name}</td><td>${r.part==null?'':r.part}</td><td>${mlab(r)}</td><td class="n">${cn(r,'B2B')}</td><td class="n">${cn(r,'B2B-CDNR')}</td><td class="n">${cn(r,'B2BA')}</td><td class="n">${cn(r,'ISD')}</td><td class="n">${nother(r)}</td><td class="n">${fmt(r.netv)}</td><td class="${cl}">${c}</td></tr>`;}).join('');
+  $('dl2').innerHTML=Object.keys(G2).map(k=>`<button class="pri" data-g="${k}">Download Excel - ${k} (${G2[k].nm} months)</button>`).join('');
   $('msg2').textContent='';$('res2').classList.remove('hide');}
 const colL=n=>{let s='';n++;while(n>0){const m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=Math.floor((n-1)/26);}return s;};
 const xe=s=>String(s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -1198,14 +1232,16 @@ async function wb2(g){
     style:(r,c,v)=>r===5?3:r===4?(c>=9&&c<=13?6:5):r<5?5:(typeof v==='number'&&(c===6||(c>=9&&c<=13))?6:5)});
     if(cres.log.length)sheets.splice(1,0,{name:'Amendment replacements',rows:[['Conso row','Supplier GSTIN','Original number','Month','Field','Old value (original)','New value (amended)'],...cres.log],wd:[11,18,22,10,28,22,22],freeze:1,filter:[0,cres.log.length],heights:{0:30},style:(r,c,v)=>r===0?3:(typeof v==='number'&&c>=5?6:5)});}
   const r2=x=>Math.round(x*100)/100,M=mlab;
-  const chk=[['File','Month','Net taxable value (B2B + debit notes - credit notes)','Rows in all sheets','Result'],...g.rs.map(r=>[r.name,M(r),r2(r.netv),nrows(r),[...r.issues,...r.warn].join('; ')||'OK'])];
-  chk.push(['','','','',''],['Completeness check','','',g.comp.cells,g.comp.fail.length?'FAILED - '+g.comp.fail.join(' | '):'OK - checked month by month in each sheet ('+g.comp.checks+' sheet-month checks): all '+g.comp.cells+' non-empty source cells and every column heading are in this workbook']);
-  if(cres)chk.push(['','','','',''],['2B Conso tab','','',cres.n,(cres.ok?'OK - ':'CHECK - ')+cres.msg]);
-  if(g.missO&&g.missO.length)chk.push(['','','','',''],['Return missing (RM)','','',g.missO.length,'RM - no GSTR-2B file for: '+g.missO.map(x=>x.lab).join(', ')+'. Each missing month is added as an RM row in every tab and in 2B Conso.']);
-  sheets.push({name:'Checks',rows:chk,wd:[44,16,24,14,120],freeze:1,filter:[0,g.rs.length],heights:{0:42},style:(r,c,v)=>r===0?3:c===2?6:(c===4&&!/^OK/.test(v)?7:5)});
+  const chk=[['File','Part','Month','Net taxable value (B2B + debit notes - credit notes)','Rows in all sheets','Result'],...g.rs.map(r=>[r.name,r.part==null?'':r.part,M(r),r2(r.netv),nrows(r),[...r.issues,...r.warn].join('; ')||'OK']),
+    ...(g.sumFiles||[]).map(r=>[r.name,'Summary',M(r),'','',[...r.issues,...r.warn].join('; ')||'OK - ITC summary, used for the tie-out'])],E=['','','','','',''],nF=chk.length-1;
+  chk.push(E,['Completeness check','','','',g.comp.cells,g.comp.fail.length?'FAILED - '+g.comp.fail.join(' | '):'OK - checked month by month in each sheet ('+g.comp.checks+' sheet-month checks, all parts of a month together): all '+g.comp.cells+' non-empty source cells and every column heading are in this workbook']);
+  if(cres)chk.push(E,['2B Conso tab','','','',cres.n,(cres.ok?'OK - ':'CHECK - ')+cres.msg]);
+  if(g.missO&&g.missO.length)chk.push(E,['Return missing (RM)','','','',g.missO.length,'RM - no GSTR-2B file for: '+g.missO.map(x=>x.lab).join(', ')+'. Each missing month is added as an RM row in every tab and in 2B Conso.']);
+  chk.push(E,['Tie-out to portal summary','','','',g.ties.length,(g.ties.length?'OK - '+g.ties.length+' month(s) tied, all parts of a month added together (see Tie-out tab): '+g.ties.map(t=>t.lab).join(', '):'No summary file was given - nothing could be tied to the portal summary')+(g.noTie.length?'. NOT tied (no summary file): '+g.noTie.join(', '):'')]);
+  sheets.push({name:'Checks',rows:chk,wd:[44,9,16,24,14,120],freeze:1,filter:[0,nF],heights:{0:42},style:(r,c,v)=>r===0?3:c===3?6:(c===5&&!/^OK/.test(v)?7:5)});
   sheets.push({name:'Completeness',rows:g.comp.rows,wd:[26,14,14,14,12],freeze:1,filter:[0,g.comp.rows.length-1],heights:{0:30},style:(r,c,v)=>r===0?3:(c===4&&v!=='OK'?7:5)});
   const tie=[['File','Month','Check','Sheet IGST','Sheet CGST','Sheet SGST','Sheet Cess','Portal summary IGST','Portal CGST','Portal SGST','Portal Cess','Difference IGST','Diff CGST','Diff SGST','Diff Cess','Status']];
-  g.rs.forEach(r=>r.tie.forEach(t=>tie.push([r.name,M(r),t.nm,...t.sh.map(r2),...t.su.map(r2),...t.d.map(r2),t.bad?'MISMATCH':'OK'])));
+  g.ties.forEach(q=>q.tie.forEach(t=>tie.push([q.src+(q.n>1?' (vs '+q.n+' files)':''),q.lab,t.nm,...t.sh.map(r2),...t.su.map(r2),...t.d.map(r2),t.bad?'MISMATCH':'OK'])));
   sheets.push({name:'Tie-out',rows:tie,wd:[44,16,34,14,14,14,12,16,14,14,12,16,12,12,12,12],freeze:1,filter:[0,tie.length-1],heights:{0:30},style:(r,c,v)=>r===0?3:c>=3&&c<=14?6:(c===15&&v==='MISMATCH'?7:5)});
   return buildXlsx(sheets);}
 $('dl2').onclick=async e=>{const g=e.target.dataset&&e.target.dataset.g;if(g)try{$('msg2').textContent='Building workbook…';save2('GSTR_2b_'+g+'_FY'+G2[g].fy+'.xlsx',await wb2(G2[g]));}catch(x){$('msg2').textContent='Error: '+x.message;}};
