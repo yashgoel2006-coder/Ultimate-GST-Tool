@@ -96,8 +96,8 @@ input.t{font:inherit;padding:8px 10px;border:1px solid var(--ln);border-radius:8
 <div id="p2b" class="hide">
 <div class="card"><div class="sub" style="margin:0 0 4px"><b>Step 2 · Select your GSTR-2B files</b></div><p class="sub" style="margin:0 0 12px">Drop the monthly GSTR-2B Excel files downloaded from the portal (named like 042025_GSTIN_GSTR2B_….xlsx), or a ZIP of them. If the portal gave you a month in several parts (…_1.xlsx, …_2.xlsx, …_3.xlsx) drop all the parts: they are joined month by month, in part order. Also drop the month's GSTR-2B Summary file (…_summary.xlsx) if you have it, so the totals can be tied to the portal. Everything is read inside your browser; no file is uploaded anywhere. You get one workbook per GSTIN.</p>
 <div id="drop2"><div style="font-size:16px"><b>Drag &amp; drop</b> GSTR-2B .xlsx files or a ZIP here</div><div class="row"><label class="btn pri">Choose files / ZIP<input id="gb" type="file" accept=".xlsx,.zip" multiple></label></div></div><div id="ptxt2" class="sub" style="margin:10px 0 0"></div></div>
-<div id="res2" class="hide"><div class="card"><div class="stats" id="stats2"></div><div id="tn2" class="sub" style="margin:0 0 12px"></div><div id="c2box" style="margin:0 0 12px;padding:10px 12px;border:1px solid var(--ln);border-radius:8px"><label style="display:block"><input type="checkbox" id="c2on"> <b>Also add a "2B Conso" tab</b> - one flat register: B2B, credit/debit notes, ECO, ISD, imports, then amendments. Months stay in order, same columns as the B2B sheet, subtotal row follows the filter. Leave unticked for the usual one-tab-per-sheet workbook.</label>
-<div id="c2sub" style="margin:8px 0 0 22px;opacity:.5"><label style="display:block;margin:3px 0">Amendments (B2BA, B2B-CDNRA, ECOA, ISDA, IMPGA): <select id="c2am"><option value="rep">replace the original row if it is in the files, else add the revised row (+ "Amendment replacements" log tab)</option><option value="app">add as separate rows, keep the originals</option><option value="off">leave out</option></select></label>
+<div id="res2" class="hide"><div class="card"><div class="stats" id="stats2"></div><div id="tn2" class="sub" style="margin:0 0 12px"></div><div id="c2box" style="margin:0 0 12px;padding:10px 12px;border:1px solid var(--ln);border-radius:8px"><label style="display:block"><input type="checkbox" id="c2on" checked> <b>Also add a "2B Conso" tab</b> - one flat register: B2B, credit/debit notes, ECO, ISD, imports, then amendments. Months stay in order, same columns as the B2B sheet, subtotal row follows the filter. Untick for the usual one-tab-per-sheet workbook only.</label>
+<div id="c2sub" style="margin:8px 0 0 22px"><label style="display:block;margin:3px 0">Amendments (B2BA, B2B-CDNRA, ECOA, ISDA, IMPGA): <select id="c2am"><option value="rep">replace the original row if it is in the files, else add the revised row (+ "Amendment replacements" log tab)</option><option value="app">add as separate rows, keep the originals</option><option value="off">leave out</option></select></label>
 <label style="display:block;margin:3px 0"><input type="checkbox" id="c2neg" checked> Credit notes (and ISD credit notes): note value, taxable value and taxes negative</label>
 <label style="display:block;margin:3px 0"><input type="checkbox" id="c2eco" checked> Include ECO</label><label style="display:block;margin:3px 0"><input type="checkbox" id="c2isd" checked> Include ISD</label><label style="display:block;margin:3px 0"><input type="checkbox" id="c2imp" checked> Include imports (IMPG, IMPGSEZ)</label></div></div>
 <div class="row" id="dl2" style="justify-content:flex-start"></div><div id="msg2" class="sub" style="margin:10px 0 0"></div></div><div class="card"><div class="tw"><table id="tb2"></table></div></div></div>
@@ -110,7 +110,7 @@ input.t{font:inherit;padding:8px 10px;border:1px solid var(--ln);border-radius:8
 <label style="display:block;margin:6px 0 3px">Amendments (B2BA, B2B-CDNRA, ECOA): <select id="c8am"><option value="rep">replace the original row with the revised one: amended month, values and ITC only, no trace of the original</option><option value="app" selected>add as separate rows, keep the originals</option><option value="off">leave out</option></select></label>
 <label style="display:block;margin:3px 0"><input type="checkbox" id="c8neg" checked> Credit notes: note value, taxable value, taxes and ITC considered negative</label><label style="display:block;margin:3px 0"><input type="checkbox" id="c8eco" checked> Include ECO (and ECOA)</label></div>
 <div class="row" id="dl8" style="justify-content:flex-start"></div><div id="msg8" class="sub" style="margin:10px 0 0"></div></div><div class="card"><div class="tw"><table id="tb8"></table></div></div></div>
-<p class="sub">The workbook has: <b>8A Conso</b> (every row of B2B, B2B-CDNR and ECO, then the amendments, with the GSTR-2B period as Month, the tax per portal and the "ITC considered for 8A" columns; the subtotal row follows the filter), <b>Month summary</b> (live formulas: ITC considered by GSTR-2B period and by section) and <b>Checks</b> (row and amount tie-out against the source sheets, documents dated outside the FY, duplicates, amendments that could not be matched).</p>
+<p class="sub">The workbook has: <b>8A Conso</b> (every row of B2B, B2B-CDNR and ECO, then the amendments, in the portal's column order (GSTR-2B Period stays in its own column; only Amendment status and Section are added at the end), with the tax per portal and the "ITC considered for 8A" columns; the subtotal row follows the filter), <b>Month summary</b> (live formulas: ITC considered by GSTR-2B period and by section) and <b>Checks</b> (row and amount tie-out against the source sheets, documents dated outside the FY, duplicates, amendments that could not be matched).</p>
 </div>
 <p class="sub" id="foot"></p>
 </main>
@@ -774,6 +774,8 @@ async function workbook(){
   add('3.1 Outward',fillM(A,1,{g:0,y:1,p:2,lab:[4]},cov3),[17,9,11,10,70,18,16,16,16,12]);add('4 ITC',fillM(B,1,{g:0,y:1,p:2,lab:[4]},cov3),[17,9,11,10,64,16,16,16,12]);add('6.1 Payment',fillM(C,1,{g:0,y:1,p:2,lab:[4,5]},cov3),[17,9,11,10,30,16,16,16,16,16,16,16,16,16,16,16]);
   add('Checks',fillM([['File','Status','GSTIN','Period','Result'],...recs.map(r=>[base(r.path),r.status,r.R.h.gstin,qPL(r.R.h),[...r.R.issues,...r.R.warn].join('; ')||'OK'])],1,{g:2,y:-1,p:3,yOf:yr3},cov3),[34,16,17,11,80]);
   const sty={};['Summary','3.1 Outward','4 ITC','6.1 Payment','Checks'].forEach(n=>flatStyle(wb.Sheets[n],n,sty));macroSheets(wb,sty);
+  /* sheet order: Summary, Outward Supplies Table, 3.1, Inward Supplies Table, 4, 6.1, Checks last */
+  {const ord=['Summary','Outward Supplies Table','3.1 Outward','Inward Supplies Table','4 ITC','6.1 Payment','Checks'];wb.SheetNames=[...ord.filter(n=>wb.SheetNames.includes(n)),...wb.SheetNames.filter(n=>!ord.includes(n))];}
   return await styleBook(XLSX.write(wb,{type:'array',bookType:'xlsx'}),wb.SheetNames,sty);}
 /* Same look for the line-by-line sheets: header row, bordered cells, numbers with 2 decimals, shaded total rows.
    o (optional): hdr = header rows, skip = rows left alone, txt = columns always shown as text/plain, int = whole-number columns, tot(r,ws) = is row r a total row */
@@ -798,16 +800,21 @@ async function inwardSheet(z,names){
   const cnt=tag=>{const m=st.match(new RegExp('<'+tag+' count="(\\d+)"'));return m?+m[1]:0;};
   const add=(tag,xml,k)=>{const c=cnt(tag);st=st.replace(new RegExp('<'+tag+' count="\\d+"'),'<'+tag+' count="'+(c+k)+'"').replace('</'+tag+'>',xml+'</'+tag+'>');return c;};
   const font=b=>'<font>'+(b?'<b/>':'')+'<sz val="11"/><color rgb="FF000000"/><name val="Aptos Narrow"/><family val="2"/></font>';
-  const F=add('fonts',font(0)+font(1),2);
+  const F=add('fonts',font(0)+font(1),2),FL=add('fills','<fill><patternFill patternType="solid"><fgColor rgb="FFDAE9F8"/><bgColor indexed="64"/></patternFill></fill>',1);
   const sd=(n,s)=>s?'<'+n+' style="'+s+'"><color auto="1"/></'+n+'>':'<'+n+'/>',bx=(l,r,t,b)=>'<border>'+sd('left',l)+sd('right',r)+sd('top',t)+sd('bottom',b)+'<diagonal/></border>';
-  const BD=add('borders',bx('thin','thin','thin','thin')+bx('thin','thin','','thin')+bx('medium','','medium','medium')+bx('','','medium','medium')+bx('','medium','medium','medium'),5);
+  /* every table gets the look of table A: light-blue title band, header and Grand Total, medium outline, medium lines under the header and above the total, thin grid inside */
+  const BLK=[[2,6],[8,11],[13,16],[18,21],[23,26],[28,31]],RT={band:['medium','medium'],hdr:['medium','medium'],d1:['','thin'],dm:['thin','thin'],dl:['thin',''],tot:['medium','medium']},PS={L:['medium','thin'],M:['thin','thin'],R:['thin','medium']};
+  const bkeys=[],bxml=[];Object.keys(RT).forEach(t=>Object.keys(PS).forEach(q=>{bkeys.push(t+q);bxml.push(bx(PS[q][0],PS[q][1],RT[t][0],RT[t][1]));}));
+  const BD=add('borders',bxml.join(''),bxml.length);
+  const pos=c=>{const b=BLK.find(x=>c>=x[0]&&c<=x[1]);return !b?'M':(c===b[0]?'L':(c===b[1]?'R':'M'));};
   const nf='<numFmt numFmtId="201" formatCode="_ * #,##0_ ;_ * \\-#,##0_ ;_ * &quot;-&quot;??_ ;_ @_ "/>';
   if(/<numFmts\b/.test(st))st=st.replace(/<numFmts count="(\d+)"/,(q,k)=>'<numFmts count="'+(+k+1)+'"').replace('</numFmts>',nf+'</numFmts>');
   else st=st.replace(/<fonts\b/,'<numFmts count="1">'+nf+'</numFmts><fonts');
   const X=(num,f,b,al,fl)=>'<xf numFmtId="'+num+'" fontId="'+(F+f)+'" fillId="'+(fl||0)+'" borderId="'+(b<0?0:BD+b)+'" xfId="0" applyNumberFormat="1" applyFont="1"'+(fl?' applyFill="1"':'')+(b<0?'':' applyBorder="1"')+' applyAlignment="1"><alignment '+al+'/></xf>';
-  const defs={ti:X(0,1,-1,'horizontal="left" vertical="top"'),gl:X(0,1,2,'horizontal="center" vertical="bottom"'),gm:X(0,1,3,'horizontal="center" vertical="bottom"'),gr:X(0,1,4,'horizontal="center" vertical="bottom"'),
-    hd:X(201,0,1,'horizontal="general" vertical="bottom"'),dt:X(17,0,0,'horizontal="general" vertical="bottom"'),nu:X(201,0,0,'horizontal="general" vertical="bottom"'),
-    tl:X(201,1,0,'horizontal="general" vertical="bottom"'),tn:X(201,1,0,'horizontal="general" vertical="bottom"')};
+  const defs={ti:X(0,1,-1,'horizontal="left" vertical="top"')};
+  bkeys.forEach((k,n)=>{const t=k.slice(0,-1),band=t==='band',fill=band||t==='hdr'||t==='tot',bold=band||t==='tot';
+    defs[k]=X(201,bold?1:0,n,band?'horizontal="center" vertical="bottom"':'horizontal="general" vertical="bottom"',fill?FL:0);
+    if(k.endsWith('L')&&/^d/.test(t))defs[k+'d']=X(17,0,n,'horizontal="general" vertical="bottom"',0);});
   const keys=Object.keys(defs),base=cnt('cellXfs'),ix={};add('cellXfs',keys.map(k=>defs[k]).join(''),keys.length);keys.forEach((k,i)=>ix[k]=base+i);
   z.file('xl/styles.xml',st);
   const colL=n=>{let s='';while(n>0){const m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=Math.floor((n-1)/26);}return s;};
@@ -817,24 +824,24 @@ async function inwardSheet(z,names){
   const BL=[[2,'(A) ITC Available'],[8,'(B) ITC Reversed 4B1'],[13,'(B) ITC Reversed 4B2'],[18,'(C) Net ITC Available'],[23,'4D1'],[28,'4D2']],
     VC=[3,8,13,18,23,28],T4=['Integrated Tax ','Central Tax ','State Tax ','Cess '];
   const rows={},mg=[],put=(c,r,v,s,f)=>{(rows[r]=rows[r]||{})[c]={v,s,f};},w=W.slice();
-  const multi=inw.groups.length>1;let last=2;
+  const multi=inw.groups.length>1;let last=3;
   inw.groups.forEach((g,gi)=>{const o=gi*22,y0=+String(g.year).slice(0,4)||2000,tot=Array(24).fill(0);
-    put(2,2+o,g.name,'ti');put(2,3+o,g.line2,'ti');put(2,4+o,multi?'ITC - '+g.gstin+' FY '+g.year:'ITC','ti');
-    BL.forEach(([c,t],bi)=>{const c2=bi===0?6:c+3;mg.push(colL(c)+(6+o)+':'+colL(c2)+(6+o));for(let k=c;k<=c2;k++)put(k,6+o,k===c?t:'',k===c?'gl':(k===c2?'gr':'gm'));
-      const c0=bi===0?3:c;if(bi===0)put(2,7+o,'Row Labels','hd');for(let k=0;k<4;k++)put(c0+k,7+o,T4[k],'hd');});
-    g.rows.forEach((row,i)=>{const r=8+o+i,cm=(i+3)%12+1,yr=cm>=4?y0:y0+1;put(2,r,Date.UTC(yr,cm-1,1)/86400000+25569,'dt');
-      (row||Array(24).fill('RM')).forEach((v,j)=>{const c=VC[Math.floor(j/4)]+j%4;if(!row){put(c,r,'RM','nu');return;}put(c,r,v,'nu');tot[j]+=v;w[c-1]=Math.max(w[c-1],need(v));});});
-    put(2,20+o,'Grand Total','tl');
-    tot.forEach((v,j)=>{const c=VC[Math.floor(j/4)]+j%4;put(c,20+o,Math.round(v*100)/100,'tn','SUM('+colL(c)+(8+o)+':'+colL(c)+(19+o)+')');w[c-1]=Math.max(w[c-1],need(v)*1.1);});
-    last=20+o;});
-  if(!inw.groups.length)put(2,2,'No monthly returns found.','ti');
+    put(2,1+o,'Eligible ITC','ti');put(2,2+o,g.name,'ti');put(2,3+o,g.gstin+(multi?' - FY '+g.year:''),'ti');
+    BL.forEach(([c,t],bi)=>{const c2=bi===0?6:c+3;mg.push(colL(c)+(5+o)+':'+colL(c2)+(5+o));for(let k=c;k<=c2;k++)put(k,5+o,k===c?t:'','band'+pos(k));
+      const c0=bi===0?3:c;if(bi===0)put(2,6+o,'Row Labels','hdr'+pos(2));for(let k=0;k<4;k++)put(c0+k,6+o,T4[k],'hdr'+pos(c0+k));});
+    g.rows.forEach((row,i)=>{const r=7+o+i,cm=(i+3)%12+1,yr=cm>=4?y0:y0+1;const rt=i===0?'d1':(i===g.rows.length-1?'dl':'dm');put(2,r,Date.UTC(yr,cm-1,1)/86400000+25569,rt+'Ld');
+      (row||Array(24).fill('RM')).forEach((v,j)=>{const c=VC[Math.floor(j/4)]+j%4;if(!row){put(c,r,'RM',rt+pos(c));return;}put(c,r,v,rt+pos(c));tot[j]+=v;w[c-1]=Math.max(w[c-1],need(v));});});
+    put(2,19+o,'Grand Total','tot'+pos(2));
+    tot.forEach((v,j)=>{const c=VC[Math.floor(j/4)]+j%4;put(c,19+o,Math.round(v*100)/100,'tot'+pos(c),'SUM('+colL(c)+(7+o)+':'+colL(c)+(18+o)+')');w[c-1]=Math.max(w[c-1],need(v)*1.1);});
+    last=19+o;});
+  if(!inw.groups.length)put(2,1,'No monthly returns found.','ti');
   const rx=Object.keys(rows).map(Number).sort((a,b)=>a-b).map(r=>'<row r="'+r+'">'+Object.keys(rows[r]).map(Number).sort((a,b)=>a-b).map(c=>{
     const x=rows[r][c],ref=colL(c)+r,s=' s="'+ix[x.s]+'"';
     if(x.v==='')return '<c r="'+ref+'"'+s+'/>';
     if(typeof x.v==='number')return '<c r="'+ref+'"'+s+'>'+(x.f?'<f>'+x.f+'</f>':'')+'<v>'+x.v+'</v></c>';
     return '<c r="'+ref+'"'+s+' t="inlineStr"><is><t xml:space="preserve">'+xe(x.v)+'</t></is></c>';}).join('')+'</row>').join('');
   const cols='<cols>'+w.map((x,i)=>'<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+x.toFixed(4)+'" customWidth="1"/>').join('')+'<col min="32" max="16384" width="9.1797"/></cols>';
-  z.file('xl/worksheets/sheet'+sn+'.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A2:AE'+last+'"/><sheetViews><sheetView workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="14.5"/>'+cols+'<sheetData>'+rx+'</sheetData>'+(mg.length?'<mergeCells count="'+mg.length+'">'+mg.map(m=>'<mergeCell ref="'+m+'"/>').join('')+'</mergeCells>':'')+'<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/></worksheet>');
+  z.file('xl/worksheets/sheet'+sn+'.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:AE'+last+'"/><sheetViews><sheetView workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="14.5"/>'+cols+'<sheetData>'+rx+'</sheetData>'+(mg.length?'<mergeCells count="'+mg.length+'">'+mg.map(m=>'<mergeCell ref="'+m+'"/>').join('')+'</mergeCells>':'')+'<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/></worksheet>');
 }
 function macroSheets(wb,sty){
   const FYO=MONTHS, T4=['Integrated Tax','Central Tax','State Tax','Cess'], ec=XLSX.utils.encode_cell;
@@ -1077,6 +1084,7 @@ function parse2b(buf,name){
     if(/GSTR2BQ/i.test(name)&&o.mm){const qq=[3,6,9,12].indexOf(o.mm);if(qq<0)o.issues.push('Quarterly 2B file name must carry the last month of the quarter (03, 06, 09 or 12)');else o.q=['Jan-Mar','Apr-Jun','Jul-Sep','Oct-Dec'][qq];}}else o.issues.push('File name is not in MMYYYY_GSTIN_GSTR2B format');
   let wb;try{wb=XLSX.read(buf,{type:'array'});}catch(e){o.issues.push('Could not read workbook: '+e.message);return o;}
   const lab=o.mm?mlab(o):'?',SN=wb.SheetNames,bi=SN.indexOf('B2B');
+  try{const rm=wb.Sheets['Read me'];if(rm)for(const r of XLSX.utils.sheet_to_json(rm,{header:1,raw:false})){const c=(r||[]).map(x=>String(x==null?'':x).trim()).filter(Boolean);if(c.length>1&&/^legal name$/i.test(c[0])){o.legal=c[1];break;}}}catch(e){}
   if(SN.indexOf('ITC Available')>=0){try{o.S=readS(wb);}catch(e){o.warn.push('Could not read the ITC summary sheets: '+e.message);}}
   const ds=bi>=0?SN.slice(bi):SN.filter(n=>!SKIPS.test(n));
   if(!ds.length){if(o.S){o.sumOnly=true;return o;}o.issues.push('No GSTR-2B data sheets found');return o;}
@@ -1163,18 +1171,20 @@ function sheetXml(sh){
       else cs.push('<c r="'+ref+'" t="inlineStr"'+(s?' s="'+s+'"':'')+'><is><t xml:space="preserve">'+xe(v)+'</t></is></c>');}
     const ht=sh.heights&&sh.heights[r];rx.push('<row r="'+(r+1)+'"'+(ht?' ht="'+ht+'" customHeight="1"':'')+'>'+cs.join('')+'</row>');}
   const last=colL(sh.wd.length-1);
-  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><sheetViews><sheetView workbookViewId="0">'+
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><sheetViews><sheetView'+(sh.noGrid?' showGridLines="0"':'')+' workbookViewId="0">'+
     (sh.freeze?'<pane ySplit="'+sh.freeze+'" topLeftCell="A'+(sh.freeze+1)+'" activePane="bottomLeft" state="frozen"/>':'')+'</sheetView></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols>'+
     sh.wd.map((w,i)=>'<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+w+'" customWidth="1"/>').join('')+'</cols><sheetData>'+rx.join('')+'</sheetData>'+
-    (sh.filter?'<autoFilter ref="A'+(sh.filter[0]+1)+':'+last+(Math.max(sh.filter[1],sh.filter[0])+1)+'"/>':'')+
+    (sh.filter?'<autoFilter ref="'+colL(sh.filter[2]||0)+(sh.filter[0]+1)+':'+last+(Math.max(sh.filter[1],sh.filter[0])+1)+'"/>':'')+
     (sh.mg&&sh.mg.length?'<mergeCells count="'+sh.mg.length+'">'+sh.mg.map(m=>'<mergeCell ref="'+colL(m[1])+(m[0]+1)+':'+colL(m[3])+(m[2]+1)+'"/>').join('')+'</mergeCells>':'')+'<pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/><pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0"/></worksheet>';}
 const XF=(f,fi,b,al,nf)=>'<xf numFmtId="'+(nf||0)+'" fontId="'+f+'" fillId="'+fi+'" borderId="'+b+'" xfId="0" applyFont="1"'+(fi?' applyFill="1"':'')+(b?' applyBorder="1"':'')+(nf?' applyNumberFormat="1"':'')+(al?' applyAlignment="1">'+al+'</xf>':'/>');
 const CEN='<alignment horizontal="center" vertical="center" wrapText="1"/>';
-const STYLES='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="6"><font><sz val="11"/><name val="Calibri"/></font><font><sz val="22"/><color rgb="FFFFFFFF"/><name val="Arial"/></font><font><b/><sz val="11"/><color rgb="FF000000"/><name val="Arial"/></font><font><b/><sz val="9"/><color rgb="FFFFFFFF"/><name val="Arial"/></font><font><sz val="10"/><name val="Calibri"/></font><font><b/><sz val="10"/><color rgb="FFC00000"/><name val="Calibri"/></font></fonts>'+
+const STYLES='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="_ * #,##0_ ;_ * \\-#,##0_ ;_ * \\-??_ ;_ @_ "/></numFmts><fonts count="8"><font><sz val="11"/><name val="Calibri"/></font><font><sz val="22"/><color rgb="FFFFFFFF"/><name val="Arial"/></font><font><b/><sz val="11"/><color rgb="FF000000"/><name val="Arial"/></font><font><b/><sz val="9"/><color rgb="FFFFFFFF"/><name val="Arial"/></font><font><sz val="10"/><name val="Calibri"/></font><font><b/><sz val="10"/><color rgb="FFC00000"/><name val="Calibri"/></font><font><sz val="11"/><name val="Aptos Narrow"/></font><font><b/><sz val="11"/><name val="Aptos Narrow"/></font></fonts>'+
  '<fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF203764"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFF2CC"/><bgColor indexed="64"/></patternFill></fill></fills>'+
  '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color auto="1"/></left><right style="thin"><color auto="1"/></right><top style="thin"><color auto="1"/></top><bottom style="thin"><color auto="1"/></bottom><diagonal/></border></borders>'+
- '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="8"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'+
+ '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="16"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'+
  XF(1,2,1,CEN)+XF(2,3,1,CEN)+XF(3,2,1,CEN)+XF(2,3,1,CEN)+XF(4,0,0,'<alignment horizontal="left"/>')+XF(4,0,0,'',2)+XF(5,0,0,'')+
+ /* 8 body, 9 body centred, 10 header left, 11 bold title, 12 bold subtotal, 13 plain text - used by the Conso tabs */
+ XF(6,0,1,'',164)+XF(6,0,1,'<alignment horizontal="center"/>',164)+XF(3,2,1,'<alignment horizontal="left" vertical="center" wrapText="1"/>')+XF(7,0,0,'')+XF(7,0,0,'',164)+XF(6,0,0,'')+XF(3,2,1,'<alignment horizontal="center" vertical="center"/>')+XF(3,2,1,'<alignment horizontal="left" vertical="center"/>')+
  '</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
 // style ids: 1 title band, 2 section line, 3 dark-blue header, 4 yellow group header, 5 text, 6 amount 0.00, 7 red alert
 async function buildXlsx(sheets){
@@ -1212,10 +1222,13 @@ function conso(g,o){
           row[0]=old[0];row[22]='Amended - original row replaced with revised values';out[at]=row;nrep++;continue;}
         row[22]=o.am==='rep'?'Amended - revised only; original not in these '+g.rs.length+' files, so not duplicated':'Amended - revised row; original row also listed';}
       out.push(row);}});
-  const rmr=(g.missO||[]).slice().sort((a,b)=>a.k-b.k).map(x=>[x.lab,...Array(TG.length).fill('RM'),'RM - GSTR-2B not provided','Return missing']);
-  const sub=c=>({f:'SUBTOTAL(9,'+colL(c)+'7:'+colL(c)+(6+out.length+rmr.length)+')'});
-  const rows=[['GSTR-2B conso - '+(g.rs[0]&&g.rs[0].gstin||'')],['FY '+g.fy],[''],[''],['Subtotal (follows filter)','','','','','','','','',sub(9),sub(10),sub(11),sub(12),sub(13)],
-    ['Month',...TG.map(x=>x[0]),'Amendment status','Section'],...out,...rmr];
+  const rmr=[];/* no RM (return missing) rows in the Conso */
+  /* keep the portal's column order: the 21 raw columns first, the added Month / Amendment status / Section at the end */
+  const outp=out.map(r=>[...r.slice(1,22),r[0],r[22],r[23]]);
+  const sub=c=>({f:'SUBTOTAL(9,'+colL(c+1)+'7:'+colL(c+1)+(6+out.length+rmr.length)+')'});
+  const srow=[...Array(8).fill(''),sub(8),sub(9),sub(10),sub(11),sub(12)],legal=((g.rs||[]).find(x=>x.legal)||{}).legal||'';
+  /* same layout as 8A Conso: thin blank column A, title / company / GSTIN, blank row, subtotals (row 5), header (row 6), data from row 7 */
+  const rows=[['','GSTR-2B conso'],['',legal],['',(g.rs[0]&&g.rs[0].gstin)||''],[],['',...srow],['',...TG.map(x=>x[0]),'Month','Amendment status','Section'],...outp.map(r=>['',...r]),...rmr];
   return {rows,log,n:out.length,ok:out.length===want-nrep,msg:out.length+' rows = '+want+' source rows - '+nrep+' replaced by amendments'};}
 /* months with no 2B file between the first and last file: one RM row each, in the right month position */
 function insRM(rows,he,g){const mo=(g.missO||[]).slice().sort((a,b)=>a.k-b.k);if(!mo.length)return rows;const km={};g.rs.forEach(r=>{if(r.mm)km[mlab(r)]=r.yy*12+r.mm;});
@@ -1229,15 +1242,15 @@ async function wb2(g){
     sheets.push({name:n,rows:a.rows,mg:a.mg,wd:a.wd,freeze:hl+1,filter:[hl,a.rows.length-1],heights,
       style:(r,c,v)=>r<3?1:r===3?2:r<=hl?((hn===3&&r===hf&&c>0)?4:3):(typeof v==='number'&&a.amt[c]?6:5)});});
   const o2=opt2(),cres=o2.on?conso(g,o2):null;
-  if(cres){sheets.unshift({name:'2B Conso',rows:cres.rows,wd:[10,17,30,20,12,12,14,16,10,14,13,13,13,10,12,12,12,20,10,10,20,12,40,22],freeze:6,filter:[5,cres.rows.length-1],heights:{5:30},
-    style:(r,c,v)=>r===5?3:r===4?(c>=9&&c<=13?6:5):r<5?5:(typeof v==='number'&&(c===6||(c>=9&&c<=13))?6:5)});
+  if(cres){sheets.unshift({name:'2B Conso',rows:cres.rows,wd:[2.6,18.8,67,18.4,11.5,11.6,21,14,26.7,16.2,14.9,12.4,13.5,7.8,30.8,34.2,13.7,24.1,22,10,22,12,10,40,22],freeze:6,filter:[5,cres.rows.length-1,1],noGrid:true,
+    style:(r,c,v)=>{if(c===0)return 0;const q=c-1;return r<3?11:r===3?0:r===4?(q>=8&&q<=12?12:0):r===5?([2,3,4,5,9,10,11,12].includes(q)?14:15):([3,4,7,14,15].includes(q)?9:8);}});
     if(cres.log.length)sheets.splice(1,0,{name:'Amendment replacements',rows:[['Conso row','Supplier GSTIN','Original number','Month','Field','Old value (original)','New value (amended)'],...cres.log],wd:[11,18,22,10,28,22,22],freeze:1,filter:[0,cres.log.length],heights:{0:30},style:(r,c,v)=>r===0?3:(typeof v==='number'&&c>=5?6:5)});}
   const r2=x=>Math.round(x*100)/100,M=mlab;
   const chk=[['File','Part','Month','Net taxable value (B2B + debit notes - credit notes)','Rows in all sheets','Result'],...g.rs.map(r=>[r.name,r.part==null?'':r.part,M(r),r2(r.netv),nrows(r),[...r.issues,...r.warn].join('; ')||'OK']),
     ...(g.sumFiles||[]).map(r=>[r.name,'Summary',M(r),'','',[...r.issues,...r.warn].join('; ')||'OK - ITC summary, used for the tie-out'])],E=['','','','','',''],nF=chk.length-1;
   chk.push(E,['Completeness check','','','',g.comp.cells,g.comp.fail.length?'FAILED - '+g.comp.fail.join(' | '):'OK - checked month by month in each sheet ('+g.comp.checks+' sheet-month checks, all parts of a month together): all '+g.comp.cells+' non-empty source cells and every column heading are in this workbook']);
   if(cres)chk.push(E,['2B Conso tab','','','',cres.n,(cres.ok?'OK - ':'CHECK - ')+cres.msg]);
-  if(g.missO&&g.missO.length)chk.push(E,['Return missing (RM)','','','',g.missO.length,'RM - no GSTR-2B file for: '+g.missO.map(x=>x.lab).join(', ')+'. Each missing month is added as an RM row in every tab and in 2B Conso.']);
+  if(g.missO&&g.missO.length)chk.push(E,['Return missing (RM)','','','',g.missO.length,'RM - no GSTR-2B file for: '+g.missO.map(x=>x.lab).join(', ')+'. Each missing month is added as an RM row in the sheet tabs (not in 2B Conso).']);
   chk.push(E,['Tie-out to portal summary','','','',g.ties.length,(g.ties.length?'OK - '+g.ties.length+' month(s) tied, all parts of a month added together (see Tie-out tab): '+g.ties.map(t=>t.lab).join(', '):'No summary file was given - nothing could be tied to the portal summary')+(g.noTie.length?'. NOT tied (no summary file): '+g.noTie.join(', '):'')]);
   sheets.push({name:'Checks',rows:chk,wd:[44,9,16,24,14,120],freeze:1,filter:[0,nF],heights:{0:42},style:(r,c,v)=>r===0?3:c===3?6:(c===5&&!/^OK/.test(v)?7:5)});
   sheets.push({name:'Completeness',rows:g.comp.rows,wd:[26,14,14,14,12],freeze:1,filter:[0,g.comp.rows.length-1],heights:{0:30},style:(r,c,v)=>r===0?3:(c===4&&v!=='OK'?7:5)});
@@ -1348,15 +1361,16 @@ function wb8(g,o){
   const c=conso8(g,o),k=chk8(g,o,c),miss8=new Set(),out=(()=>{const o2=c.out.slice(),have=new Set(o2.map(r=>r[0])),y=parseInt(g.fy,10);if(!y)return o2;
     const MN3=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     for(let i=0;i<12;i++){const mi=(i+3)%12,yy=mi>=3?y:y+1,lab=MN3[mi]+'-'+String(yy%100).padStart(2,'0');}
-    return o2;})(),n=out.length,L=6+Math.max(n,1),sub=q=>({f:'SUBTOTAL(9,'+colL(q)+'7:'+colL(q)+L+')'});
-  const sheets=[],ref=q=>"'8A Conso'!$"+colL(q)+'$7:$'+colL(q)+'$'+L;
-  const hd=['Month (GSTR-2B period)',...H8,'Amendment status','Section'],srow=['Subtotal (follows filter)',...hd.slice(1).map((x,i)=>NS8.has(i+1)?sub(i+1):'')];
-  const rows=[['GSTR-9 Table 8A conso - '+g.gstin+(g.legal?' - '+g.legal:'')],['FY '+g.fy+' - source file '+g.file.name+(g.gen?' (generated '+g.gen+')':'')],
-    ['One flat register: B2B, credit/debit notes, ECO, then amendments. Month = the "GSTR-2B Period" of the document. "ITC considered" columns = "Actual ITC amount considered for 8A Summary computation".'],
-    ['Credit notes are '+(o.neg?'shown negative (value, taxable value, taxes and ITC).':'shown as in the portal file (positive).')+' Amendments: '+({rep:'replace the original row when it is in the file, otherwise the revised row is added. The ITC considered on a replaced row is the figure shown on the amended row (the original row\'s ITC no longer counts).',app:'added as separate rows; originals kept. The ITC considered on an amendment row is the change over the original, so the column total matches the portal.',off:'left out.'})[o.am]],
-    srow,hd,...out];
-  sheets.push({name:'8A Conso',rows,wd:[11,17,30,20,12,13,14,14,10,14,13,13,13,10,12,12,12,15,15,15,15,36,46,24],freeze:6,filter:[5,rows.length-1],heights:{5:44},
-    style:(r,q,v)=>r===5?3:r===4?(NS8.has(q)?6:5):r<5?5:(typeof v==='number'&&NS8.has(q)?6:5)});
+    return o2;})(),n=out.length,L=6+Math.max(n,1),sub=q=>({f:'SUBTOTAL(9,'+colL(q+1)+'7:'+colL(q+1)+L+')'});
+  /* the register keeps the portal's 8A column order (GSTR-2B Period stays between Filing Date and ITC Availability); only Amendment status and Section are added at the end.
+     Internally a row is [month, 21 fields, status, section]; pm() gives the column a field has in the sheet. */
+  const CHC=new Set([2,3,4,5,9,10,11,12,17,18,19,20]),CBC=new Set([3,4,7,14,16]);/* header / body columns that are centred, as in the reference sheet */
+  const pm=q=>q===0?15:(q<=15?q-1:q),rp=r=>[...r.slice(1,16),r[0],...r.slice(16)],NSo=new Set([...NS8].map(pm));
+  const sheets=[],ref=q=>"'8A Conso'!$"+colL(pm(q)+1)+'$7:$'+colL(pm(q)+1)+'$'+L;
+  const hd=[...H8.slice(0,15),'GSTR-2B Period',...H8.slice(15),'Amendment status','Section'],srow=hd.map((x,p)=>NSo.has(p)?sub(p):'');
+  const rows=[['','GSTR-9 Table 8A conso'],['',g.legal||''],['',g.gstin],[],['',...srow],['',...hd],...out.map(r=>['',...rp(r)])];
+  sheets.push({name:'8A Conso',rows,wd:[2.6,18.8,67,18.4,11.5,11.6,21,14,26.7,16.2,14.9,12.4,13.5,7.8,30.8,34.2,14.6,13.7,14.8,12.4,13.4,7.7,24.1,46,24],freeze:6,filter:[5,rows.length-1,1],noGrid:true,
+    style:(r,c,v)=>{if(c===0)return 0;const q=c-1;return r<3?11:r===3?0:r===4?(NSo.has(q)?12:0):r===5?(CHC.has(q)?14:15):(CBC.has(q)?9:8);}});
   if(c.log.length)sheets.push({name:'Amendment replacements',rows:[['Conso row','Supplier GSTIN','Original number','Month','Field','Old value (original)','New value (amended)'],...c.log],wd:[11,18,22,10,40,22,22],freeze:1,filter:[0,c.log.length],heights:{0:30},style:(r,q,v)=>r===0?3:(typeof v==='number'&&q>=5?6:5)});
   // month-wise and section-wise summary - live formulas on the Conso tab, so they follow any edits
   const ms=monthRows8(out),HS=['Rows','Taxable value (\u20B9)','ITC considered - IGST','ITC considered - CGST','ITC considered - SGST','ITC considered - Cess','Total ITC considered','Tax on rows with ITC = No'];
